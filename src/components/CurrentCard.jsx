@@ -6,7 +6,9 @@ import { temp, precip } from '../lib/convert.js'
 const TONE_COLOR = { good: 'var(--good)', warning: 'var(--warning)', serious: 'var(--serious)', muted: 'var(--ink-3)' }
 const TONE_ICON = { good: '●', warning: '▲', serious: '◆', muted: '·' }
 
-export default function CurrentCard({ data, units, weights, bias, rainSoon, location, nowIndex, isSaved, onToggleSave }) {
+const RADAR_WORDS = ['', 'light rain', 'moderate rain', 'heavy rain']
+
+export default function CurrentCard({ data, units, weights, bias, rainSoon, radarNow, location, nowIndex, isSaved, onToggleSave }) {
   const at = (v) => valuesAt(data.hourly[v], nowIndex)
   // bias corrections are learned on temperature, so they apply only there
   const tempStats = kstats(at('temperature_2m'), weights, bias)
@@ -23,6 +25,24 @@ export default function CurrentCard({ data, units, weights, bias, rainSoon, loca
   const tone = spreadTone(range)
   const pr = precip(rain?.mean, units)
   const smart = [weights && 'weighted', bias && 'bias-corrected'].filter(Boolean).join(' · ')
+
+  // reality check: live radar at this point vs what each model claims for
+  // this hour. Shown whenever radar and the models disagree, or during rain.
+  const precipNow = at('precipitation')
+  const modelCalls = Object.entries(precipNow)
+    .filter(([, v]) => Number.isFinite(v))
+    .map(([id, v]) => ({ id, wet: v > 0.05 }))
+  const wetModels = modelCalls.filter((m) => m.wet)
+  let reality = null
+  if (radarNow && modelCalls.length) {
+    if (radarNow.raining) {
+      reality = `📡 Radar: ${RADAR_WORDS[radarNow.intensity]} at your location · ${
+        wetModels.length ? `${wetModels.length}/${modelCalls.length} models are calling it` : 'no model saw it coming'
+      }`
+    } else if (wetModels.length >= 2) {
+      reality = `📡 Radar: dry at your location · ${wetModels.length}/${modelCalls.length} models expect rain this hour`
+    }
+  }
 
   return (
     <div className="card">
@@ -45,6 +65,7 @@ export default function CurrentCard({ data, units, weights, bias, rainSoon, loca
             {TONE_ICON[tone.tone]} {tone.label} · {temp(tempStats?.min, units)}–{temp(tempStats?.max, units)}° across {tempStats?.count ?? 0} models
             {smart ? ` · ${smart}` : ''}
           </div>
+          {reality && <div className="reality">{reality}</div>}
           {rainSoon && <div className="rain-soon">{rainSoon}</div>}
         </div>
       </div>

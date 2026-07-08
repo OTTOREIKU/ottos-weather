@@ -229,6 +229,17 @@ async function fetchDetailsRaw(lat, lon) {
 
 const SEVERITY_RANK = { Extreme: 0, Severe: 1, Moderate: 2, Minor: 3, Unknown: 4 }
 
+// NWS bulletins arrive hard-wrapped at teletype width; rejoin lines within
+// paragraphs so the text reflows naturally on any screen
+function reflow(text) {
+  if (!text) return text
+  return text
+    .split(/\n{2,}/)
+    .map((p) => p.replace(/\n/g, ' ').replace(/\s+/g, ' ').trim())
+    .filter(Boolean)
+    .join('\n\n')
+}
+
 // Active NWS alerts for a point (official US National Weather Service, no key).
 // Non-US locations get an empty list.
 export async function fetchAlerts(lat, lon, force = false) {
@@ -251,8 +262,8 @@ export async function fetchAlerts(lat, lon, force = false) {
         event: f.properties.event,
         headline: f.properties.headline,
         severity: f.properties.severity || 'Unknown',
-        description: f.properties.description,
-        instruction: f.properties.instruction,
+        description: reflow(f.properties.description),
+        instruction: reflow(f.properties.instruction),
         ends: f.properties.ends || f.properties.expires,
         areaDesc: f.properties.areaDesc,
       }))

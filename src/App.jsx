@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { fetchForecast, fetchAlerts, fetchMinutely, fetchDetails } from './api/openMeteo.js'
 import { fetchExtraSources, ALL_MODELS } from './api/sources.js'
 import { weightsFromScores, biasFromScores, selectScope } from './lib/aggregate.js'
+import { sampleRadarAt } from './lib/radarSample.js'
 import * as storage from './lib/storage.js'
 import * as sync from './lib/sync.js'
 import AlertsBanner from './components/AlertsBanner.jsx'
@@ -79,6 +80,7 @@ export default function App() {
   const [alerts, setAlerts] = useState([])
   const [rainSoon, setRainSoon] = useState(null)
   const [details, setDetails] = useState(null)
+  const [radarNow, setRadarNow] = useState(null)
   const [sources, setSources] = useState(storage.loadSources)
   const [sourceStatus, setSourceStatus] = useState({})
   const [syncToken, setSyncToken] = useState(() => storage.loadSetting('synctoken', ''))
@@ -99,6 +101,9 @@ export default function App() {
     fetchDetails(loc.lat, loc.lon, force)
       .then((d) => locationRef.current === loc && setDetails(d))
       .catch(() => setDetails(null))
+    sampleRadarAt(loc.lat, loc.lon)
+      .then((s) => locationRef.current === loc && setRadarNow(s))
+      .catch(() => setRadarNow(null))
     try {
       const d = await fetchForecast(loc.lat, loc.lon, force)
       setData(d)
@@ -383,6 +388,7 @@ export default function App() {
             weights={weights}
             bias={bias}
             rainSoon={rainSoon}
+            radarNow={radarNow}
             location={location}
             nowIndex={nowIndex}
             isSaved={isSaved}

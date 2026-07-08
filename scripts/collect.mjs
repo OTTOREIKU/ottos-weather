@@ -20,6 +20,7 @@ const MODELS = [
 ]
 const LEADS = [1, 2, 3] // days ahead
 const RAIN_MM = 1.0
+const RAIN_HOURLY_MM = 0.2 // per-hour rain threshold for timing scores
 const DAILY_VARS = 'temperature_2m_max,temperature_2m_min,precipitation_sum'
 
 const read = (path, fallback) => {
@@ -120,6 +121,7 @@ for (const loc of locations) {
       latitude: loc.lat,
       longitude: loc.lon,
       daily: DAILY_VARS,
+      hourly: 'precipitation', // hourly rain for next-day timing scores
       models: MODELS.join(','),
       timezone: 'auto',
       forecast_days: '4',
@@ -155,11 +157,21 @@ for (const loc of locations) {
       const key = `${locKey(loc)}|${date}|L${lead}`
       if (log[key]) continue // keep the earliest forecast for a target date
       const models = {}
+      // hourly indexes belonging to this target date (next-day timing only:
+      // storm placement barely means anything at 2-3 days out)
+      const hourIdx =
+        lead === 1 ? j.hourly.time.map((t, i) => (t.startsWith(date) ? i : -1)).filter((i) => i >= 0) : []
       for (const id of MODELS) {
         models[id] = {
           hi: j.daily[`temperature_2m_max_${id}`]?.[lead] ?? null,
           lo: j.daily[`temperature_2m_min_${id}`]?.[lead] ?? null,
           pr: j.daily[`precipitation_sum_${id}`]?.[lead] ?? null,
+        }
+        if (hourIdx.length === 24) {
+          const arr = j.hourly[`precipitation_${id}`]
+          if (Array.isArray(arr)) {
+            models[id].prH = hourIdx.map((i) => (Number.isFinite(arr[i]) ? Math.round(arr[i] * 100) / 100 : null))
+          }
         }
       }
       for (const [id, byDate] of Object.entries(extras)) {
@@ -185,8 +197,17 @@ for (const e of verifiable) {
 for (const entries of byLoc.values()) {
   const { lat, lon, name } = entries[0]
   const actualByDate = {}
+  const actualHourly = {}
   const recent = entries.filter((e) => e.date >= addDays(today, -7))
   const older = entries.filter((e) => e.date < addDays(today, -7))
+
+  const collectHourly = (j) => {
+    if (!j.hourly?.time) return
+    j.hourly.time.forEach((t, i) => {
+      const d = t.slice(0, 10)
+      ;(actualHourly[d] ||= []).push(j.hourly.precipitation[i])
+    })
+  }
 
   try {
     if (recent.length) {
@@ -196,6 +217,7 @@ for (const entries of byLoc.values()) {
         latitude: lat,
         longitude: lon,
         daily: DAILY_VARS,
+        hourly: 'precipitation',
         past_days: '7',
         forecast_days: '1',
         timezone: 'auto',
@@ -208,6 +230,7 @@ for (const entries of byLoc.values()) {
           pr: j.daily.precipitation_sum[i],
         }
       })
+      collectHourly(j)
     }
     if (older.length) {
       // catch-up path if the workflow missed runs: ERA5 archive (has ~5 day lag)
@@ -216,6 +239,7 @@ for (const entries of byLoc.values()) {
         latitude: lat,
         longitude: lon,
         daily: DAILY_VARS,
+        hourly: 'precipitation',
         start_date: dates[0],
         end_date: dates[dates.length - 1],
         timezone: 'auto',
@@ -228,6 +252,7 @@ for (const entries of byLoc.values()) {
           pr: j.daily.precipitation_sum[i],
         }
       })
+      collectHourly(j)
     }
   } catch (e) {
     console.error(`actuals failed: ${name}: ${e.message}`)
@@ -264,6 +289,21 @@ for (const entries of byLoc.values()) {
       bump(m)
       m.byLead ||= {}
       bump((m.byLead[entry.lead] ||= {}))
+      // hourly rain timing (next-day forecasts only): did the model put the
+      // rain in the right hours, not just the right day
+      const obsH = actualHourly[entry.date]
+      if (entry.lead === 1 && Array.isArray(f.prH) && obsH?.length === 24) {
+        const rh = (m.rainH ||= { hit: 0, miss: 0, fa: 0, cn: 0 })
+        for (let h = 0; h < 24; h++) {
+          if (!Number.isFinite(f.prH[h]) || !Number.isFinite(obsH[h])) continue
+          const predicted = f.prH[h] >= RAIN_HOURLY_MM
+          const observed = obsH[h] >= RAIN_HOURLY_MM
+          if (predicted && observed) rh.hit++
+          else if (!predicted && observed) rh.miss++
+          else if (predicted && !observed) rh.fa++
+          else rh.cn++
+        }
+      }
       // per-location scores too: model skill is regional, and the app prefers
       // these once a location has enough verified days
       scores.locations ||= {}

@@ -21,6 +21,10 @@ export default function Scorecard({
     const maeC = s.sumErr / s.nT
     const rainTotal = s.rain ? s.rain.hit + s.rain.miss + s.rain.fa + s.rain.cn : 0
     const biasC = Number.isFinite(s.sumBiasHi) ? (s.sumBiasHi + s.sumBiasLo) / (2 * s.nT) : null
+    // storm timing: critical success index over rainy hours (hits vs misses
+    // and false alarms), so quiet dry hours don't inflate the number
+    const rhEvents = s.rainH ? s.rainH.hit + s.rainH.miss + s.rainH.fa : 0
+    const timing = rhEvents >= 10 ? s.rainH.hit / rhEvents : null
     return {
       ...m,
       n: s.nT,
@@ -28,6 +32,7 @@ export default function Scorecard({
       mae: units === 'imperial' ? maeC * 1.8 : maeC,
       bias: biasC == null ? null : units === 'imperial' ? biasC * 1.8 : biasC,
       rainAcc: rainTotal ? (s.rain.hit + s.rain.cn) / rainTotal : null,
+      timing,
     }
   }).sort((a, b) => (a.maeC ?? Infinity) - (b.maeC ?? Infinity))
 
@@ -87,7 +92,13 @@ export default function Scorecard({
                       ±{r.mae.toFixed(1)}°<small> avg error</small>
                     </span>
                     <span className="bias-note">{biasLabel(r.bias)}</span>
-                    <span className="rain-acc">{r.rainAcc != null ? `${Math.round(r.rainAcc * 100)}% rain` : ''}</span>
+                    <span
+                      className="rain-acc"
+                      title={r.timing != null ? `storm timing skill (right hours): ${Math.round(r.timing * 100)}%` : undefined}
+                    >
+                      {r.rainAcc != null ? `${Math.round(r.rainAcc * 100)}% rain` : ''}
+                      {r.timing != null ? ` · ${Math.round(r.timing * 100)}% hr` : ''}
+                    </span>
                     <span className="days">{r.n}d</span>
                   </>
                 ) : (
@@ -98,7 +109,8 @@ export default function Scorecard({
           </div>
           <div className="panel-foot">
             Average error is the mean absolute miss on next-day high/low temps. Rain % is how often
-            the model correctly called rain vs no rain (1 mm threshold). Shorter bar = better. When
+            the model correctly called rain vs no rain (1 mm threshold); the hr % is storm timing,
+            how well the model put next-day rain in the right hours. Shorter bar = better. When
             enabled, the mean is weighted toward accurate models and each model's systematic
             hot/cold bias is subtracted before averaging.
           </div>
