@@ -360,7 +360,9 @@ input {
 /* ---------- model panel ---------- */
 .model-row {
   display: grid;
-  grid-template-columns: 12px minmax(96px, auto) 26px 48px 1fr;
+  /* every column fixed except the deviation track, so all rows align and
+     every track is the same length */
+  grid-template-columns: 12px 112px 24px 52px 1fr;
   align-items: center;
   gap: 8px;
   padding: 5px 0;
@@ -368,7 +370,25 @@ input {
 }
 
 .model-row .name {
-  padding-right: 8px;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.model-row .name small {
+  display: block;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.model-row .ic {
+  text-align: center;
+}
+
+.model-row .t {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
 }
 
 .model-row .swatch {

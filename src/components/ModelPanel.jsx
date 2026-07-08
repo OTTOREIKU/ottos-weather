@@ -43,7 +43,7 @@ export default function ModelPanel({ data, units, weights, nowIndex }) {
                   {m.label}
                   <small>{m.agency}</small>
                 </span>
-                <span>{describe(codes[m.id]).icon !== '·' ? describe(codes[m.id]).icon : ''}</span>
+                <span className="ic">{describe(codes[m.id]).icon !== '·' ? describe(codes[m.id]).icon : ''}</span>
                 <span className="t">{temp1(t, units)}°</span>
                 <span className="dev-track">
                   <span className="zero" />
