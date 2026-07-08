@@ -27,22 +27,6 @@ models by how well they perform for your location).
 
 No API keys, no backend — everything is fetched client-side from free, keyless APIs.
 
-## Development
-
-```
-npm install
-npm run dev      # http://localhost:5175
-npm run build    # static output in dist/
-```
-
-## Deploying to GitHub Pages
-
-1. Push this repo to GitHub (branch `main`)
-2. Repo **Settings → Pages → Source: GitHub Actions**
-3. The included workflow (`.github/workflows/deploy.yml`) builds and deploys on every push
-
-`vite.config.js` uses `base: './'`, so the build works under any repo name.
-
 ## Data sources
 
 - Forecasts & geocoding: [Open-Meteo](https://open-meteo.com/) (free, non-commercial)
