@@ -262,17 +262,28 @@ export async function fetchAlerts(lat, lon, force = false) {
   }
 }
 
-// RainViewer radar frames: ~2h of past frames plus a short nowcast. No key.
-// Short cache so tab switches don't refetch the frame list.
+// Radar frames: LibreWXR public instance (open-source RainViewer drop-in with
+// a real ~60 minute nowcast, CC BY 4.0). Falls back to RainViewer's surviving
+// past-only feed if LibreWXR is unreachable. Short cache so tab switches
+// don't refetch the frame list.
 export async function fetchRadarFrames() {
-  const json = await cached('radar:frames', 2 * 60000, async () => {
-    const res = await fetch('https://api.rainviewer.com/public/weather-maps.json')
-    if (!res.ok) throw new Error(`Radar frames failed (${res.status})`)
-    return res.json()
+  const json = await cached('radar:frames2', 2 * 60000, async () => {
+    try {
+      const res = await fetch('https://api.librewxr.net/public/weather-maps.json')
+      if (res.ok) {
+        const j = await res.json()
+        if (j?.radar?.past?.length) return { ...j, source: 'librewxr' }
+      }
+      throw new Error('librewxr unavailable')
+    } catch {
+      const res = await fetch('https://api.rainviewer.com/public/weather-maps.json')
+      if (!res.ok) throw new Error(`Radar frames failed (${res.status})`)
+      return { ...(await res.json()), source: 'rainviewer' }
+    }
   })
   const frames = [
     ...(json.radar?.past || []).map((f) => ({ ...f, nowcast: false })),
     ...(json.radar?.nowcast || []).map((f) => ({ ...f, nowcast: true })),
   ]
-  return { host: json.host, frames }
+  return { host: json.host, frames, source: json.source }
 }

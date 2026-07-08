@@ -26,6 +26,10 @@ function writeStore(store) {
   }
 }
 
+// on fetch failure, serve a stale entry up to this old rather than erroring
+// (rides out transient network blips like a dropped OWM request)
+const STALE_MAX_MS = 6 * 3600e3
+
 export async function cached(key, ttlMs, fetcher, force = false) {
   const now = Date.now()
   if (!force) {
@@ -37,7 +41,14 @@ export async function cached(key, ttlMs, fetcher, force = false) {
       return s.v
     }
   }
-  const v = await fetcher()
+  let v
+  try {
+    v = await fetcher()
+  } catch (e) {
+    const stale = mem.get(key) || readStore()[key]
+    if (stale && now - stale.t < STALE_MAX_MS) return stale.v
+    throw e
+  }
   const entry = { t: now, v }
   mem.set(key, entry)
   const store = readStore()

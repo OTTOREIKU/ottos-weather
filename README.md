@@ -15,9 +15,10 @@ when they diverge you can see exactly how much.
   precipitation bars; flip between 12, 24, and 48 hours, hover or drag to read any hour
 - **8-day outlook**: daily hi/lo means with the hi span, consensus condition, and rain
   as model agreement ("5/8 · 2.3 mm"); tap any day for its full hourly breakdown
-- **Animated radar**: past 2 hours of RainViewer tiles on a dark map, plus about 40
-  minutes of future frames the app estimates itself by tracking storm motion across
-  recent frames (RainViewer shut down their forecast tiles, so we built our own)
+- **Animated radar**: past 2 hours plus a real 1-hour forecast from LibreWXR, the
+  open source radar API, on a dark map with a scrubbable timeline. If LibreWXR is
+  ever unreachable the app falls back to RainViewer's past-only feed and estimates
+  the future frames itself by tracking storm motion
 - **NWS alerts**: official National Weather Service watches and warnings for the
   selected location, tap to expand
 - **Rain soon**: 15-minute resolution "rain expected around 3:40 PM" readout for
@@ -52,5 +53,5 @@ scoring data is stored in the repo itself by the workflow.
 
 - Forecasts & geocoding: [Open-Meteo](https://open-meteo.com/) (free, non-commercial)
 - Alerts: [National Weather Service](https://www.weather.gov/documentation/services-web-api)
-- Radar: [RainViewer](https://www.rainviewer.com/api.html) public API
+- Radar: [LibreWXR](https://librewxr.net/) (open source, CC BY 4.0)
 - Basemap: © OpenStreetMap contributors, © CARTO

@@ -438,7 +438,7 @@ export default function App() {
       <div className="footer">
         Forecast data by <a href="https://open-meteo.com/">Open-Meteo</a> (8 global models), with optional
         NWS, OpenWeather, and PirateWeather sources · Alerts by NWS · Radar by{' '}
-        <a href="https://www.rainviewer.com/">RainViewer</a> · Map &copy; OpenStreetMap &amp; CARTO
+        <a href="https://librewxr.net/">LibreWXR</a> (CC BY 4.0) · Map &copy; OpenStreetMap &amp; CARTO
       </div>
     </div>
   )

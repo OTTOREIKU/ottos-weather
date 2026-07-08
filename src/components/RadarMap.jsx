@@ -4,8 +4,9 @@ import 'leaflet/dist/leaflet.css'
 import { fetchRadarFrames } from '../api/openMeteo.js'
 import { buildNowcast } from '../lib/nowcast.js'
 
-// RainViewer tile scheme: 2 = Universal Blue. Radar data exists only up to
-// tile zoom 7, so request 512px tiles one zoom back and upscale past that.
+// Tile scheme (RainViewer-compatible, served by LibreWXR): 2 = Universal
+// Blue. Native radar detail tops out around tile zoom 7, so request 512px
+// tiles one zoom back and upscale past that.
 const COLOR_SCHEME = 2
 const FRAME_MS = 500
 const HOLD_LAST_MS = 1600
@@ -23,8 +24,9 @@ export default function RadarMap({ location }) {
   const framesRef = useRef([])
   const stripRef = useRef(null)
   const regenTimer = useRef(null)
-  const [frames, setFrames] = useState([]) // real RainViewer frames
+  const [frames, setFrames] = useState([]) // real radar frames
   const [synth, setSynth] = useState([]) // extrapolated future frames
+  const [source, setSource] = useState(null) // librewxr | rainviewer (fallback)
   const [status, setStatus] = useState('loading') // loading | ready | error
   const [idx, setIdx] = useState(0)
   const [playing, setPlaying] = useState(true)
@@ -66,7 +68,7 @@ export default function RadarMap({ location }) {
   // pass doesn't flash while tiles stream in; refresh the set every 5 minutes
   const loadFrames = useCallback(async (initial) => {
     try {
-      const { host, frames: next } = await fetchRadarFrames()
+      const { host, frames: next, source: src } = await fetchRadarFrames()
       const map = mapRef.current
       if (!map) return
       if (initial) setStatus('loading')
@@ -81,6 +83,7 @@ export default function RadarMap({ location }) {
         framesRef.current = next
         framesRef.current.host = host
         setFrames(next)
+        setSource(src)
         const lp = next.filter((f) => !f.nowcast).length - 1
         setIdx(Math.max(0, lp))
         setStatus('ready')
@@ -130,7 +133,13 @@ export default function RadarMap({ location }) {
     const map = mapRef.current
     const real = framesRef.current
     if (!map || !real.length) return
-    if (real.some((f) => f.nowcast)) return // real nowcast exists, don't fake one
+    if (real.some((f) => f.nowcast)) {
+      // real nowcast exists (LibreWXR): drop any stale extrapolated overlays
+      for (const ov of overlaysRef.current.values()) map.removeLayer(ov)
+      overlaysRef.current = new Map()
+      setSynth([])
+      return
+    }
     try {
       const result = await buildNowcast(map, real.host, real.filter((f) => !f.nowcast))
       const current = mapRef.current
@@ -257,9 +266,19 @@ export default function RadarMap({ location }) {
         </span>
       </div>
       <div className="radar-note">
-        Radar by RainViewer (past 2 hours). Amber frames are estimated in-app: storm motion is
-        measured across the last 30 minutes of radar and projected forward, so treat them as a
-        trend, not gospel.
+        {source === 'rainviewer' ? (
+          <>
+            Radar by RainViewer (past 2 hours, fallback source). Amber frames are estimated
+            in-app: storm motion is measured across the last 30 minutes of radar and projected
+            forward, so treat them as a trend, not gospel.
+          </>
+        ) : (
+          <>
+            Radar and 1-hour forecast by <a href="https://librewxr.net/">LibreWXR</a> (open
+            source, CC BY 4.0). Amber frames are the model nowcast of where precipitation is
+            heading.
+          </>
+        )}
       </div>
     </div>
   )
