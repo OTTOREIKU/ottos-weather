@@ -1,7 +1,8 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react'
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
 import { fetchRadarFrames } from '../api/openMeteo.js'
+import { buildNowcast } from '../lib/nowcast.js'
 
 // RainViewer tile scheme: 2 = Universal Blue. Radar data exists only up to
 // tile zoom 7, so request 512px tiles one zoom back and upscale past that.
@@ -17,16 +18,23 @@ function clock(ts) {
 export default function RadarMap({ location }) {
   const mapEl = useRef(null)
   const mapRef = useRef(null)
-  const layersRef = useRef(new Map())
+  const layersRef = useRef(new Map()) // real frames: tile layers, keyed by time
+  const overlaysRef = useRef(new Map()) // synthetic frames: image overlays, keyed by time
+  const framesRef = useRef([])
   const stripRef = useRef(null)
-  const [frames, setFrames] = useState([])
+  const regenTimer = useRef(null)
+  const [frames, setFrames] = useState([]) // real RainViewer frames
+  const [synth, setSynth] = useState([]) // extrapolated future frames
   const [status, setStatus] = useState('loading') // loading | ready | error
   const [idx, setIdx] = useState(0)
   const [playing, setPlaying] = useState(true)
 
+  // timeline = real past frames + (real nowcast if RainViewer ever restores it,
+  // otherwise our extrapolated frames)
+  const all = useMemo(() => [...frames, ...synth], [frames, synth])
   const lastPast = frames.length ? frames.filter((f) => !f.nowcast).length - 1 : 0
-  const hasNowcast = frames.some((f) => f.nowcast)
-  // the loop covers the last hour of past plus all nowcast: where it's heading,
+  const hasFuture = all.some((f) => f.nowcast)
+  // the loop covers the last hour of past plus the future: where it's heading,
   // not where it's been. Older frames stay reachable through the timeline.
   const loopStart = Math.max(0, lastPast - 6)
 
@@ -50,6 +58,7 @@ export default function RadarMap({ location }) {
       map.remove()
       mapRef.current = null
       layersRef.current = new Map()
+      overlaysRef.current = new Map()
     }
   }, [location.lat, location.lon])
 
@@ -69,6 +78,8 @@ export default function RadarMap({ location }) {
       const settle = () => {
         if (settled) return
         settled = true
+        framesRef.current = next
+        framesRef.current.host = host
         setFrames(next)
         const lp = next.filter((f) => !f.nowcast).length - 1
         setIdx(Math.max(0, lp))
@@ -102,7 +113,7 @@ export default function RadarMap({ location }) {
       if (loaded >= next.length) settle()
       // don't wait forever on a slow tile server
       setTimeout(settle, 8000)
-    } catch (e) {
+    } catch {
       if (initial) setStatus('error')
     }
   }, [])
@@ -113,34 +124,82 @@ export default function RadarMap({ location }) {
     return () => clearInterval(t)
   }, [loadFrames])
 
+  // build extrapolated future frames for the current viewport; reruns when the
+  // frame set refreshes and (debounced) when the user pans or zooms
+  const regenNowcast = useCallback(async () => {
+    const map = mapRef.current
+    const real = framesRef.current
+    if (!map || !real.length) return
+    if (real.some((f) => f.nowcast)) return // real nowcast exists, don't fake one
+    try {
+      const result = await buildNowcast(map, real.host, real.filter((f) => !f.nowcast))
+      const current = mapRef.current
+      if (!current) return
+      const next = new Map()
+      for (const f of result) {
+        const ov = L.imageOverlay(f.url, f.bounds, { opacity: 0, zIndex: 11 })
+        ov.addTo(current)
+        next.set(f.time, ov)
+      }
+      for (const ov of overlaysRef.current.values()) current.removeLayer(ov)
+      overlaysRef.current = next
+      setSynth(result)
+    } catch {
+      /* extrapolation is best-effort */
+    }
+  }, [])
+
+  useEffect(() => {
+    if (status !== 'ready') return
+    regenNowcast()
+  }, [status, frames, regenNowcast])
+
+  useEffect(() => {
+    const map = mapRef.current
+    if (!map) return
+    const onMove = () => {
+      clearTimeout(regenTimer.current)
+      regenTimer.current = setTimeout(regenNowcast, 700)
+    }
+    map.on('moveend zoomend', onMove)
+    return () => {
+      clearTimeout(regenTimer.current)
+      map.off('moveend zoomend', onMove)
+    }
+  }, [regenNowcast, location.lat, location.lon])
+
+  // keep the cursor valid if the frame list shrinks
+  useEffect(() => {
+    if (all.length && idx >= all.length) setIdx(all.length - 1)
+  }, [all, idx])
+
   // show the active frame
   useEffect(() => {
-    if (!frames.length) return
-    const active = frames[idx]?.time
-    for (const [time, layer] of layersRef.current) {
-      layer.setOpacity(time === active ? 0.72 : 0)
-    }
-  }, [idx, frames])
+    if (!all.length) return
+    const active = all[Math.min(idx, all.length - 1)]?.time
+    for (const [time, layer] of layersRef.current) layer.setOpacity(time === active ? 0.72 : 0)
+    for (const [time, ov] of overlaysRef.current) ov.setOpacity(time === active ? 0.72 : 0)
+  }, [idx, all])
 
   // playback: step forward, hold on the most-future frame, wrap to loop start
   useEffect(() => {
-    if (!playing || status !== 'ready' || frames.length < 2) return
-    const atEnd = idx >= frames.length - 1
+    if (!playing || status !== 'ready' || all.length < 2) return
+    const atEnd = idx >= all.length - 1
     const t = setTimeout(() => setIdx(atEnd ? loopStart : idx + 1), atEnd ? HOLD_LAST_MS : FRAME_MS)
     return () => clearTimeout(t)
-  }, [playing, status, idx, frames, loopStart])
+  }, [playing, status, idx, all, loopStart])
 
   const scrub = (e) => {
-    if (!frames.length || !stripRef.current) return
+    if (!all.length || !stripRef.current) return
     const rect = stripRef.current.getBoundingClientRect()
     const frac = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width))
     setPlaying(false)
-    setIdx(Math.round(frac * (frames.length - 1)))
+    setIdx(Math.round(frac * (all.length - 1)))
   }
 
-  const frame = frames[idx]
+  const frame = all[Math.min(idx, Math.max(0, all.length - 1))]
   const minutesFromNow = frame ? Math.round((idx - lastPast) * 10) : 0
-  const nowPct = frames.length > 1 ? ((lastPast + 0.5) / frames.length) * 100 : 100
+  const nowPct = all.length > 1 ? ((lastPast + 0.5) / all.length) * 100 : 100
 
   return (
     <div className="card radar-card">
@@ -158,7 +217,11 @@ export default function RadarMap({ location }) {
           <span className="rt-clock">{frame ? clock(frame.time) : '–:–'}</span>
           {frame && (
             <span className={`rt-tag ${frame.nowcast ? 'future' : ''}`}>
-              {minutesFromNow === 0 ? 'now' : minutesFromNow > 0 ? `+${minutesFromNow} min` : `${minutesFromNow} min`}
+              {minutesFromNow === 0
+                ? 'now'
+                : minutesFromNow > 0
+                  ? `+${minutesFromNow} min${frame.synthetic ? ' est' : ''}`
+                  : `${minutesFromNow} min`}
             </span>
           )}
         </div>
@@ -166,12 +229,16 @@ export default function RadarMap({ location }) {
           className="radar-strip"
           ref={stripRef}
           onPointerDown={(e) => {
-            e.currentTarget.setPointerCapture(e.pointerId)
+            try {
+              e.currentTarget.setPointerCapture(e.pointerId)
+            } catch {
+              /* capture is a nice-to-have for drag; scrubbing works without it */
+            }
             scrub(e)
           }}
           onPointerMove={(e) => e.buttons > 0 && scrub(e)}
         >
-          {frames.map((f, i) => (
+          {all.map((f, i) => (
             <span key={f.time} className={`seg ${f.nowcast ? 'future' : ''} ${i === idx ? 'active' : ''}`} />
           ))}
           <span className="now-tick" style={{ left: `${nowPct}%` }}>
@@ -180,11 +247,19 @@ export default function RadarMap({ location }) {
         </div>
       </div>
       <div className="radar-strip-labels">
-        <span>{frames.length ? clock(frames[0].time) : ''}</span>
-        <span className="fut">{hasNowcast ? `${clock(frames[frames.length - 1].time)} forecast` : 'nowcast unavailable'}</span>
+        <span>{all.length ? clock(all[0].time) : ''}</span>
+        <span className="fut">
+          {synth.length
+            ? `+${synth.length * 10} min estimated`
+            : hasFuture
+              ? `${clock(all[all.length - 1].time)} forecast`
+              : 'no precipitation to project'}
+        </span>
       </div>
       <div className="radar-note">
-        Radar by RainViewer: past 2 hours plus a ~30 minute forecast (amber). Loops over the last hour and where it's heading.
+        Radar by RainViewer (past 2 hours). Amber frames are estimated in-app: storm motion is
+        measured across the last 30 minutes of radar and projected forward, so treat them as a
+        trend, not gospel.
       </div>
     </div>
   )
