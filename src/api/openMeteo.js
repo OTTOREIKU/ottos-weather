@@ -72,18 +72,72 @@ export async function fetchForecast(lat, lon) {
   }
 }
 
+const US_STATES = {
+  AL: 'Alabama', AK: 'Alaska', AZ: 'Arizona', AR: 'Arkansas', CA: 'California',
+  CO: 'Colorado', CT: 'Connecticut', DE: 'Delaware', FL: 'Florida', GA: 'Georgia',
+  HI: 'Hawaii', ID: 'Idaho', IL: 'Illinois', IN: 'Indiana', IA: 'Iowa',
+  KS: 'Kansas', KY: 'Kentucky', LA: 'Louisiana', ME: 'Maine', MD: 'Maryland',
+  MA: 'Massachusetts', MI: 'Michigan', MN: 'Minnesota', MS: 'Mississippi', MO: 'Missouri',
+  MT: 'Montana', NE: 'Nebraska', NV: 'Nevada', NH: 'New Hampshire', NJ: 'New Jersey',
+  NM: 'New Mexico', NY: 'New York', NC: 'North Carolina', ND: 'North Dakota', OH: 'Ohio',
+  OK: 'Oklahoma', OR: 'Oregon', PA: 'Pennsylvania', RI: 'Rhode Island', SC: 'South Carolina',
+  SD: 'South Dakota', TN: 'Tennessee', TX: 'Texas', UT: 'Utah', VT: 'Vermont',
+  VA: 'Virginia', WA: 'Washington', WV: 'West Virginia', WI: 'Wisconsin', WY: 'Wyoming',
+  DC: 'District of Columbia',
+}
+
+// The geocoder only matches place names, so "Milford MI" finds nothing useful.
+// Peel a trailing state abbreviation, state name, or ", region" off the query
+// and use it to filter results instead.
+function parseQuery(query) {
+  const q = query.trim()
+  const comma = q.includes(',')
+  const parts = comma ? q.split(',').map((s) => s.trim()) : q.split(/\s+/)
+  if (parts.length >= 2) {
+    const tail = comma ? parts.slice(1).join(' ') : parts[parts.length - 1]
+    const name = comma ? parts[0] : parts.slice(0, -1).join(' ')
+    if (name) {
+      const abbrev = US_STATES[tail.toUpperCase()]
+      if (abbrev) return { name, region: abbrev }
+      const full = Object.values(US_STATES).find((s) => s.toLowerCase() === tail.toLowerCase())
+      if (full) return { name, region: full }
+      if (comma) return { name, region: tail }
+    }
+  }
+  return { name: q, region: null }
+}
+
 export async function geocode(query) {
-  const params = new URLSearchParams({ name: query, count: '6', language: 'en', format: 'json' })
+  const { name, region } = parseQuery(query)
+  const params = new URLSearchParams({
+    name,
+    count: region ? '20' : '10',
+    language: 'en',
+    format: 'json',
+  })
   const res = await fetch(`https://geocoding-api.open-meteo.com/v1/search?${params}`)
   if (!res.ok) throw new Error(`Geocoding failed (${res.status})`)
   const json = await res.json()
-  return (json.results || []).map((r) => ({
+  let results = (json.results || []).map((r) => ({
     name: r.name,
     admin1: r.admin1 || '',
     country: r.country_code || '',
+    countryName: r.country || '',
     lat: r.latitude,
     lon: r.longitude,
   }))
+  if (region) {
+    const rx = region.toLowerCase()
+    const matches = results.filter(
+      (r) =>
+        r.admin1.toLowerCase().startsWith(rx) ||
+        r.country.toLowerCase() === rx ||
+        r.countryName.toLowerCase().startsWith(rx),
+    )
+    // a bad qualifier still shows something rather than nothing
+    if (matches.length) results = matches
+  }
+  return results.slice(0, 8)
 }
 
 // 15-minute precipitation for the next hours (best-match model). Used for the
