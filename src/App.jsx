@@ -221,7 +221,7 @@ export default function App() {
       <div className="header">
         <div className="brand">
           OTTO's Weather
-          <small>7 independent forecast models · mean &amp; spread</small>
+          <small>8 independent forecast models · mean &amp; spread</small>
         </div>
         <SearchBar onPick={select} onGeolocate={geolocate} />
         <div className="segmented">
@@ -279,7 +279,7 @@ export default function App() {
       {status === 'idle' && (
         <div className="notice">Search for a city above, or hit ◎ to use your location.</div>
       )}
-      {status === 'loading' && <div className="notice">Fetching 7 forecast models…</div>}
+      {status === 'loading' && <div className="notice">Fetching 8 forecast models…</div>}
       {status === 'error' && <div className="notice error">Couldn't load forecast: {errorMsg}</div>}
 
       {status === 'ready' && data && location && tab === 'forecast' && (
@@ -336,8 +336,8 @@ export default function App() {
 
       <div className="footer">
         Forecast data by <a href="https://open-meteo.com/">Open-Meteo</a> (ECMWF, GFS, ICON, ARPEGE, UKMO,
-        JMA, GEM) · Radar by <a href="https://www.rainviewer.com/">RainViewer</a> · Map &copy; OpenStreetMap
-        &amp; CARTO
+        JMA, GEM, CMA) · Alerts by NWS · Radar by <a href="https://www.rainviewer.com/">RainViewer</a> · Map
+        &copy; OpenStreetMap &amp; CARTO
       </div>
     </div>
   )
