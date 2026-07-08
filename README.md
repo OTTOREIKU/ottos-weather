@@ -1,7 +1,7 @@
 # Weather Aggregator
 
-A weather app that doesn't trust any single forecast. It pulls **7 genuinely independent
-forecast models** (ECMWF, GFS, ICON, ARPEGE, UKMO, JMA, GEM) in one Open-Meteo request,
+A weather app that doesn't trust any single forecast. It pulls **8 genuinely independent
+forecast models** (ECMWF, GFS, ICON, ARPEGE, UKMO, JMA, GEM, CMA) in one Open-Meteo request,
 then shows the **mean and the spread**. When the models agree the number is solid, and
 when they diverge you can see exactly how much.
 
@@ -20,6 +20,11 @@ when they diverge you can see exactly how much.
   °F/°C toggle: all persisted in localStorage
 - Rain probability is computed as **model agreement** (share of models predicting
   precipitation), not a single model's percentage
+- **NWS alerts**: official National Weather Service watches and warnings for the
+  selected location, tap to expand
+- **Rain soon**: 15-minute resolution "rain expected around 3:40 PM" readout for
+  the next couple of hours
+- **Installable PWA**: add to home screen on mobile, loads instantly, works as an app
 
 ## Accuracy scoring
 

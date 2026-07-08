@@ -31,7 +31,7 @@ function niceStep(span, target) {
 
 // Generic multi-model hourly chart for any window of the forecast:
 // the main "next N hours" view and the per-day detail both render through this.
-export default function HourlyChart({ data, units, weights, startIndex, hours, nowIndex, title, headerExtra }) {
+export default function HourlyChart({ data, units, weights, bias, startIndex, hours, nowIndex, title, headerExtra }) {
   const wrapRef = useRef(null)
   const [width, setWidth] = useState(720)
   const [hover, setHover] = useState(null)
@@ -77,11 +77,11 @@ export default function HourlyChart({ data, units, weights, startIndex, hours, n
       n,
       times,
       perModelTemp,
-      agg: aggregateSeries(perModelTemp, weights),
+      agg: aggregateSeries(perModelTemp, weights, bias),
       perModelPrecip,
       precipAgg: aggregateSeries(perModelPrecip),
     }
-  }, [data, startIndex, hours, weights])
+  }, [data, startIndex, hours, weights, bias])
 
   // reset the selection when the window moves
   useEffect(() => {

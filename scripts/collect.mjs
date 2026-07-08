@@ -16,6 +16,7 @@ const MODELS = [
   'ukmo_seamless',
   'jma_seamless',
   'gem_seamless',
+  'cma_grapes_global',
 ]
 const LEADS = [1, 2, 3] // days ahead
 const RAIN_MM = 1.0
@@ -176,6 +177,12 @@ for (const entries of byLoc.values()) {
       bump(m)
       m.byLead ||= {}
       bump((m.byLead[entry.lead] ||= {}))
+      // per-location scores too: model skill is regional, and the app prefers
+      // these once a location has enough verified days
+      scores.locations ||= {}
+      const lk = `${entry.lat.toFixed(2)},${entry.lon.toFixed(2)}`
+      const locScope = (scores.locations[lk] ||= { name: entry.name, models: {} })
+      bump((locScope.models[id] ||= {}))
     }
     entry.verified = true
     entry.actual = actual

@@ -7,7 +7,7 @@ import HourlyChart from './HourlyChart.jsx'
 const DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
 const DAYS_FULL = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
 
-export default function DailySection({ data, units, weights, nowIndex }) {
+export default function DailySection({ data, units, weights, bias, nowIndex }) {
   const [selected, setSelected] = useState(null)
 
   const dayName = (iso, i, full) => {
@@ -28,8 +28,8 @@ export default function DailySection({ data, units, weights, nowIndex }) {
         <div className="section-title">8-day outlook, tap a day for its hourly detail</div>
         <div className="daily-grid">
           {data.dailyTime.map((iso, i) => {
-            const hi = kstats(valuesAt(data.daily.temperature_2m_max, i), weights)
-            const lo = kstats(valuesAt(data.daily.temperature_2m_min, i), weights)
+            const hi = kstats(valuesAt(data.daily.temperature_2m_max, i), weights, bias)
+            const lo = kstats(valuesAt(data.daily.temperature_2m_min, i), weights, bias)
             const code = consensusCode(Object.values(valuesAt(data.daily.weather_code, i)))
             const cond = describe(code)
             const rain = agreementAt(data.daily.precipitation_sum, i, 0.2)
@@ -69,6 +69,7 @@ export default function DailySection({ data, units, weights, nowIndex }) {
           data={data}
           units={units}
           weights={weights}
+          bias={bias}
           startIndex={dayStart(data.dailyTime[selected])}
           hours={24}
           nowIndex={nowIndex}

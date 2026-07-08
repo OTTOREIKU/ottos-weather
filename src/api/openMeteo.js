@@ -8,6 +8,7 @@ export const MODELS = [
   { id: 'ukmo_seamless', label: 'UKMO', agency: 'UK Met Office', color: '#9085e9' },
   { id: 'jma_seamless', label: 'JMA', agency: 'JMA · Japan', color: '#e66767' },
   { id: 'gem_seamless', label: 'GEM', agency: 'ECCC · Canada', color: '#d55181' },
+  { id: 'cma_grapes_global', label: 'CMA', agency: 'CMA · China', color: '#d95926' },
 ]
 
 const HOURLY_VARS = [
@@ -18,6 +19,8 @@ const HOURLY_VARS = [
   'wind_speed_10m',
   'relative_humidity_2m',
   'cloud_cover',
+  'dew_point_2m',
+  'pressure_msl',
 ]
 
 const DAILY_VARS = [
@@ -81,6 +84,55 @@ export async function geocode(query) {
     lat: r.latitude,
     lon: r.longitude,
   }))
+}
+
+// 15-minute precipitation for the next hours (best-match model). Used for the
+// "rain starting soon" readout; unavailable regions return nulls.
+export async function fetchMinutely(lat, lon) {
+  const params = new URLSearchParams({
+    latitude: lat.toFixed(4),
+    longitude: lon.toFixed(4),
+    minutely_15: 'precipitation',
+    // 2 days so the 2.5h horizon survives late-evening checks near local midnight
+    forecast_days: '2',
+    timezone: 'auto',
+  })
+  const res = await fetch(`https://api.open-meteo.com/v1/forecast?${params}`)
+  if (!res.ok) throw new Error(`Minutely request failed (${res.status})`)
+  const json = await res.json()
+  return {
+    utcOffsetSeconds: json.utc_offset_seconds,
+    time: json.minutely_15?.time || [],
+    precipitation: json.minutely_15?.precipitation || [],
+  }
+}
+
+const SEVERITY_RANK = { Extreme: 0, Severe: 1, Moderate: 2, Minor: 3, Unknown: 4 }
+
+// Active NWS alerts for a point (official US National Weather Service, no key).
+// Non-US locations get an empty list.
+export async function fetchAlerts(lat, lon) {
+  try {
+    const res = await fetch(`https://api.weather.gov/alerts/active?point=${lat.toFixed(4)},${lon.toFixed(4)}`, {
+      headers: { Accept: 'application/geo+json' },
+    })
+    if (!res.ok) return []
+    const json = await res.json()
+    return (json.features || [])
+      .map((f) => ({
+        id: f.properties.id || f.id,
+        event: f.properties.event,
+        headline: f.properties.headline,
+        severity: f.properties.severity || 'Unknown',
+        description: f.properties.description,
+        instruction: f.properties.instruction,
+        ends: f.properties.ends || f.properties.expires,
+        areaDesc: f.properties.areaDesc,
+      }))
+      .sort((a, b) => (SEVERITY_RANK[a.severity] ?? 4) - (SEVERITY_RANK[b.severity] ?? 4))
+  } catch {
+    return []
+  }
 }
 
 // RainViewer radar frames: ~2h of past frames plus a short nowcast. No key.

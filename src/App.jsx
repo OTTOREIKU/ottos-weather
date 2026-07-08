@@ -1,7 +1,8 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { fetchForecast, MODELS } from './api/openMeteo.js'
-import { weightsFromScores } from './lib/aggregate.js'
+import { fetchForecast, fetchAlerts, fetchMinutely, MODELS } from './api/openMeteo.js'
+import { weightsFromScores, biasFromScores, selectScope } from './lib/aggregate.js'
 import * as storage from './lib/storage.js'
+import AlertsBanner from './components/AlertsBanner.jsx'
 import SearchBar from './components/SearchBar.jsx'
 import CurrentCard from './components/CurrentCard.jsx'
 import ModelPanel from './components/ModelPanel.jsx'
@@ -16,6 +17,38 @@ const AUTO_OPTIONS = [
   { value: 10, label: 'Auto: 10 min' },
   { value: 30, label: 'Auto: 30 min' },
 ]
+
+// scan the 15-minute precipitation series for a rain start/stop in the next
+// ~2.5 hours relative to the location's local clock
+function analyzeRainSoon(minutely) {
+  if (!minutely?.time?.length) return null
+  const nowLocal = new Date(Date.now() + minutely.utcOffsetSeconds * 1000)
+  const isoNow = nowLocal.toISOString().slice(0, 16)
+  let start = 0
+  for (let i = 0; i < minutely.time.length; i++) {
+    if (minutely.time[i] <= isoNow) start = i
+    else break
+  }
+  const p = minutely.precipitation
+  const val = (i) => (Number.isFinite(p[i]) ? p[i] : 0)
+  const HORIZON = 10 // 15-min steps
+  const fmt = (iso) => {
+    const h = Number(iso.slice(11, 13))
+    const h12 = h % 12 === 0 ? 12 : h % 12
+    return `${h12}:${iso.slice(14, 16)} ${h >= 12 ? 'PM' : 'AM'}`
+  }
+  const rainingNow = val(start) > 0.1 || val(start + 1) > 0.1
+  if (!rainingNow) {
+    for (let i = start + 1; i <= Math.min(start + HORIZON, p.length - 1); i++) {
+      if (val(i) > 0.15) return `🌧 Rain expected around ${fmt(minutely.time[i])}`
+    }
+    return null
+  }
+  for (let i = start + 1; i <= Math.min(start + HORIZON, p.length - 2); i++) {
+    if (val(i) < 0.05 && val(i + 1) < 0.05) return `🌤 Rain easing around ${fmt(minutely.time[i])}`
+  }
+  return '🌧 Rain continuing for the next 2+ hours'
+}
 
 function agoLabel(ts) {
   if (!ts) return ''
@@ -37,7 +70,10 @@ export default function App() {
   const [hourlyWindow, setHourlyWindow] = useState(() => storage.loadSetting('window', 24))
   const [autoRefresh, setAutoRefresh] = useState(() => storage.loadSetting('autorefresh', 10))
   const [weighting, setWeighting] = useState(() => storage.loadSetting('weighting', true))
+  const [biasCorrect, setBiasCorrect] = useState(() => storage.loadSetting('biascorrect', true))
   const [scores, setScores] = useState(null)
+  const [alerts, setAlerts] = useState([])
+  const [rainSoon, setRainSoon] = useState(null)
   const [updatedAt, setUpdatedAt] = useState(null)
   const [, setTick] = useState(0) // re-render for the "updated x ago" label
   const locationRef = useRef(null)
@@ -46,6 +82,11 @@ export default function App() {
     locationRef.current = loc
     setLocation(loc)
     if (!isRefresh) setStatus('loading')
+    // side data is best-effort and never blocks the forecast
+    fetchAlerts(loc.lat, loc.lon).then((a) => locationRef.current === loc && setAlerts(a))
+    fetchMinutely(loc.lat, loc.lon)
+      .then((m) => locationRef.current === loc && setRainSoon(analyzeRainSoon(m)))
+      .catch(() => setRainSoon(null))
     try {
       const d = await fetchForecast(loc.lat, loc.lon)
       setData(d)
@@ -121,6 +162,10 @@ export default function App() {
     setWeighting(on)
     storage.saveSetting('weighting', on)
   }
+  const toggleBias = (on) => {
+    setBiasCorrect(on)
+    storage.saveSetting('biascorrect', on)
+  }
 
   const isSaved = useMemo(
     () => !!location && saved.some((s) => storage.locationKey(s) === storage.locationKey(location)),
@@ -155,11 +200,21 @@ export default function App() {
     return idx
   }, [data, updatedAt])
 
-  // accuracy weights kick in once every model has 14+ verified days
-  const weights = useMemo(() => {
-    if (!weighting) return null
-    return weightsFromScores(scores, MODELS.map((m) => m.id))
-  }, [scores, weighting])
+  // accuracy weights + learned bias corrections kick in once enough models
+  // have 14+ verified days; location-specific scores win over pooled ones
+  const scope = useMemo(
+    () => (location ? selectScope(scores, storage.locationKey(location)) : null),
+    [scores, location],
+  )
+  const modelIds = useMemo(() => MODELS.map((m) => m.id), [])
+  const weights = useMemo(
+    () => (weighting && scope ? weightsFromScores(scope.models, modelIds) : null),
+    [scope, weighting, modelIds],
+  )
+  const bias = useMemo(
+    () => (biasCorrect && scope ? biasFromScores(scope.models, modelIds) : null),
+    [scope, biasCorrect, modelIds],
+  )
 
   return (
     <div className="container">
@@ -219,6 +274,8 @@ export default function App() {
         </div>
       )}
 
+      {status === 'ready' && <AlertsBanner alerts={alerts} />}
+
       {status === 'idle' && (
         <div className="notice">Search for a city above, or hit ◎ to use your location.</div>
       )}
@@ -232,6 +289,8 @@ export default function App() {
               data={data}
               units={units}
               weights={weights}
+              bias={bias}
+              rainSoon={rainSoon}
               location={location}
               nowIndex={nowIndex}
               isSaved={isSaved}
@@ -243,6 +302,7 @@ export default function App() {
             data={data}
             units={units}
             weights={weights}
+            bias={bias}
             startIndex={nowIndex}
             hours={hourlyWindow}
             nowIndex={nowIndex}
@@ -257,13 +317,17 @@ export default function App() {
               </div>
             }
           />
-          <DailySection data={data} units={units} weights={weights} nowIndex={nowIndex} />
+          <DailySection data={data} units={units} weights={weights} bias={bias} nowIndex={nowIndex} />
           <Scorecard
             scores={scores}
             units={units}
             weighting={weighting}
             onToggleWeighting={toggleWeighting}
             weightsActive={!!weights}
+            biasCorrect={biasCorrect}
+            onToggleBias={toggleBias}
+            biasActive={!!bias}
+            scope={scope?.scope}
           />
         </>
       )}

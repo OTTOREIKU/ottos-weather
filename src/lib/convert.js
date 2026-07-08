@@ -20,6 +20,13 @@ export function wind(kmh, units) {
     : { value: Math.round(kmh), unit: 'km/h' }
 }
 
+export function pressure(hPa, units) {
+  if (!Number.isFinite(hPa)) return { value: '–', unit: units === 'imperial' ? 'inHg' : 'hPa' }
+  return units === 'imperial'
+    ? { value: (hPa * 0.02953).toFixed(2), unit: 'inHg' }
+    : { value: Math.round(hPa), unit: 'hPa' }
+}
+
 export function precip(mm, units) {
   if (!Number.isFinite(mm)) return { value: '–', unit: units === 'imperial' ? 'in' : 'mm' }
   return units === 'imperial'

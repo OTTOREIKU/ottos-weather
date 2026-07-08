@@ -17,7 +17,10 @@ export function stats(values) {
 }
 
 // byModel: { modelId: value } → weighted stats. weights: { modelId: w } or null.
-export function kstats(byModel, weights) {
+// bias: { modelId: correction°C } or null, applied to the MEAN only (a model's
+// learned systematic offset is subtracted before averaging); min/max stay raw
+// so the spread always shows what the models actually said.
+export function kstats(byModel, weights, bias) {
   let min = Infinity
   let max = -Infinity
   let sum = 0
@@ -28,7 +31,7 @@ export function kstats(byModel, weights) {
     const w = weights?.[id] ?? 1
     if (v < min) min = v
     if (v > max) max = v
-    sum += v * w
+    sum += (v + (bias?.[id] ?? 0)) * w
     wsum += w
     count++
   }
@@ -37,7 +40,7 @@ export function kstats(byModel, weights) {
 }
 
 // perModel: { modelId: number[] | null } → column-wise stats arrays
-export function aggregateSeries(perModel, weights) {
+export function aggregateSeries(perModel, weights, bias) {
   const entries = Object.entries(perModel).filter(([, a]) => Array.isArray(a))
   const len = Math.max(0, ...entries.map(([, a]) => a.length))
   const mean = new Array(len).fill(null)
@@ -46,7 +49,7 @@ export function aggregateSeries(perModel, weights) {
   for (let i = 0; i < len; i++) {
     const byModel = {}
     for (const [id, arr] of entries) byModel[id] = arr[i]
-    const s = kstats(byModel, weights)
+    const s = kstats(byModel, weights, bias)
     if (s) {
       mean[i] = s.mean
       min[i] = s.min
@@ -104,19 +107,59 @@ export function spreadTone(rangeC) {
   return { label: 'Models diverge', tone: 'serious' }
 }
 
-// Turn accuracy scores into normalized mean-weights. Requires every model to
-// have at least minDays of verified forecasts, so early sparse data can't
-// skew the mean. Weight shape: 1/(0.5 + MAE°C), then normalized to sum 1.
-export function weightsFromScores(scores, modelIds, minDays = 14) {
-  if (!scores?.models) return null
+const MIN_SCORED_MODELS = 5
+
+// Pick the scoring scope for a location: location-specific scores once that
+// location has enough verified data, otherwise the pooled global scores.
+export function selectScope(scores, locKey, minDays = 14) {
+  const enough = (models) =>
+    models && Object.values(models).filter((m) => (m.nT || 0) >= minDays).length >= MIN_SCORED_MODELS
+  const local = scores?.locations?.[locKey]?.models
+  if (enough(local)) return { models: local, scope: 'local' }
+  if (enough(scores?.models)) return { models: scores.models, scope: 'global' }
+  return null
+}
+
+// Turn accuracy scores into normalized mean-weights. Models with at least
+// minDays of verified forecasts get 1/(0.5 + MAE°C); models still accumulating
+// data (e.g. newly added ones) get a neutral average weight so they neither
+// stall the system nor skew it. Needs MIN_SCORED_MODELS scored models to
+// activate at all.
+export function weightsFromScores(models, modelIds, minDays = 14) {
+  if (!models) return null
   const raw = {}
+  const scored = []
   for (const id of modelIds) {
-    const m = scores.models[id]
-    if (!m || !m.nT || m.nT < minDays) return null
-    raw[id] = 1 / (0.5 + m.sumErr / m.nT)
+    const m = models[id]
+    if (m && m.nT >= minDays) {
+      raw[id] = 1 / (0.5 + m.sumErr / m.nT)
+      scored.push(id)
+    }
   }
-  const total = Object.values(raw).reduce((a, b) => a + b, 0)
+  if (scored.length < MIN_SCORED_MODELS) return null
+  const neutral = scored.reduce((a, id) => a + raw[id], 0) / scored.length
+  for (const id of modelIds) if (!(id in raw)) raw[id] = neutral
+  const total = modelIds.reduce((a, id) => a + raw[id], 0)
   const out = {}
   for (const id of modelIds) out[id] = raw[id] / total
   return out
+}
+
+// Learned temperature corrections: the negated mean signed error, so a model
+// that runs 2° hot gets -2 applied before averaging. Clamped to ±5°C sanity.
+export function biasFromScores(models, modelIds, minDays = 14) {
+  if (!models) return null
+  const out = {}
+  let any = false
+  for (const id of modelIds) {
+    const m = models[id]
+    if (m && m.nT >= minDays && Number.isFinite(m.sumBiasHi) && Number.isFinite(m.sumBiasLo)) {
+      const meanBias = (m.sumBiasHi + m.sumBiasLo) / (2 * m.nT)
+      out[id] = -Math.max(-5, Math.min(5, meanBias))
+      any = true
+    } else {
+      out[id] = 0
+    }
+  }
+  return any ? out : null
 }
