@@ -779,21 +779,37 @@ button.item:hover {
 }
 
 .pin-readout .pr-models {
-  display: flex;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(92px, 1fr));
   gap: 6px;
-  flex-wrap: wrap;
-  margin-top: 8px;
+  margin-top: 10px;
 }
 
 .pin-readout .pr-chip {
-  display: inline-flex;
+  display: flex;
   align-items: center;
+  justify-content: center;
   gap: 5px;
   background: var(--surface-3);
-  border-radius: 999px;
-  padding: 3px 9px;
-  font-size: 12px;
+  border-radius: 8px;
+  padding: 8px 4px;
+  font-size: 12.5px;
   color: var(--ink-2);
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+.pin-readout .pr-chip.active {
+  box-shadow: inset 0 0 0 1.5px var(--chip-c);
+  color: var(--ink);
+  font-weight: 650;
+}
+
+.pin-readout .pr-hint {
+  margin-top: 9px;
+  font-size: 11.5px;
+  color: var(--ink-3);
+  text-align: center;
 }
 
 .pin-readout .swatch {

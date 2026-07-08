@@ -124,6 +124,9 @@ export default function HourlyChart({ data, units, weights, bias, startIndex, ho
   const soloActive = solo && Array.isArray(view.perModelTemp[solo]) ? solo : null
   const soloModel = soloActive ? MODELS.find((m) => m.id === soloActive) : null
   const precipSeries = soloActive ? view.perModelPrecip[soloActive] || [] : view.precipAgg.mean
+  // compact (phone-width) charts show only mean + spread; individual model
+  // lines appear there by isolating a model through its chip
+  const compact = width < 600
 
   const pMax = Math.max(0.5, ...precipSeries.filter(Number.isFinite))
   const pTop = M.top + TEMP_H + GAP
@@ -203,12 +206,11 @@ export default function HourlyChart({ data, units, weights, bias, startIndex, ho
   const selRainMean = precipSeries[sel]
   const selPr = precip(selRainMean, units)
 
-  const readoutRows = MODELS.filter((m) => !soloActive || m.id === soloActive)
-    .map((m) => {
-      const v = view.perModelTemp[m.id]?.[sel]
-      return Number.isFinite(v) ? { ...m, temp: Math.round(u(v)) } : null
-    })
-    .filter(Boolean)
+  const chipRows = MODELS.map((m) => {
+    const v = view.perModelTemp[m.id]?.[sel]
+    return Number.isFinite(v) ? { ...m, temp: Math.round(u(v)) } : null
+  }).filter(Boolean)
+  const readoutRows = soloActive ? chipRows.filter((m) => m.id === soloActive) : chipRows
 
   const selMean = soloActive ? view.perModelTemp[soloActive]?.[sel] : view.agg.mean[sel]
   const meanLabel = soloModel ? soloModel.label : 'Mean'
@@ -281,7 +283,7 @@ export default function HourlyChart({ data, units, weights, bias, startIndex, ho
 
           {!soloActive && <path d={bandPath} fill="rgba(255,255,255,0.07)" />}
 
-          {MODELS.filter((m) => !soloActive || m.id === soloActive).map((m) => (
+          {MODELS.filter((m) => (soloActive ? m.id === soloActive : !compact)).map((m) => (
             <path
               key={m.id}
               d={linePath(view.perModelTemp[m.id])}
@@ -423,15 +425,24 @@ export default function HourlyChart({ data, units, weights, bias, startIndex, ho
           </span>
         </div>
         <div className="pr-models">
-          {readoutRows.map((m) => (
-            <span className="pr-chip" key={m.id}>
+          {chipRows.map((m) => (
+            <button
+              className={`pr-chip ${soloActive === m.id ? 'active' : ''}`}
+              key={m.id}
+              style={{ '--chip-c': m.color }}
+              onClick={() => setSolo(solo === m.id ? null : m.id)}
+            >
               <span className="swatch" style={{ background: m.color }} />
               {m.label} {m.temp}°
-            </span>
+            </button>
           ))}
+        </div>
+        <div className="pr-hint">
+          {soloActive ? `showing ${soloModel.label} only · tap it again to show all` : 'tap a model to see just its line'}
         </div>
       </div>
 
+      {!compact && (
       <div className="legend">
         <button className={`item ${soloActive ? 'dim' : ''}`} onClick={() => setSolo(null)}>
           <span className="line-key" /> Mean
@@ -453,6 +464,7 @@ export default function HourlyChart({ data, units, weights, bias, startIndex, ho
         ))}
         <span className="legend-hint">{soloActive ? `showing ${soloModel.label} only · tap again for all` : 'tap a model to isolate it'}</span>
       </div>
+      )}
     </div>
   )
 }
