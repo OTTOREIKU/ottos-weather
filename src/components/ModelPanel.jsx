@@ -29,7 +29,7 @@ export default function ModelPanel({ data, units, weights, nowIndex }) {
         <span className="chev">{open ? '▾' : '▸'}</span>
       </button>
       {open && (
-        <div className="panel-body">
+        <div className="panel-body model-cols">
           {rows.map((m) => {
             const t = temps[m.id]
             const dev = t - s.mean

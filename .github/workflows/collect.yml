@@ -22,6 +22,9 @@ jobs:
         with:
           node-version: 22
       - run: node scripts/collect.mjs
+        env:
+          OPENWEATHER_API_KEY: ${{ secrets.OPENWEATHER_API_KEY }}
+          PIRATEWEATHER_API_KEY: ${{ secrets.PIRATEWEATHER_API_KEY }}
       - name: Commit data
         id: commit
         run: |

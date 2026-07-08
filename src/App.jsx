@@ -79,6 +79,7 @@ export default function App() {
   const [rainSoon, setRainSoon] = useState(null)
   const [details, setDetails] = useState(null)
   const [sources, setSources] = useState(storage.loadSources)
+  const [sourceStatus, setSourceStatus] = useState({})
   const [updatedAt, setUpdatedAt] = useState(null)
   const [, setTick] = useState(0) // re-render for the "updated x ago" label
   const locationRef = useRef(null)
@@ -103,7 +104,11 @@ export default function App() {
       storage.logSnapshot(loc, d)
       // enrich with the extra sources once they respond
       fetchExtraSources(d, loc, storage.loadSources())
-        .then((merged) => merged && locationRef.current === loc && setData(merged))
+        .then(({ merged, status }) => {
+          if (locationRef.current !== loc) return
+          setSourceStatus(status)
+          if (merged) setData(merged)
+        })
         .catch(() => {})
     } catch (e) {
       if (!isRefresh) {
@@ -301,20 +306,18 @@ export default function App() {
 
       {status === 'ready' && data && location && tab === 'forecast' && (
         <>
-          <div className="grid-top">
-            <CurrentCard
-              data={data}
-              units={units}
-              weights={weights}
-              bias={bias}
-              rainSoon={rainSoon}
-              location={location}
-              nowIndex={nowIndex}
-              isSaved={isSaved}
-              onToggleSave={toggleSave}
-            />
-            <ModelPanel data={data} units={units} weights={weights} nowIndex={nowIndex} />
-          </div>
+          <CurrentCard
+            data={data}
+            units={units}
+            weights={weights}
+            bias={bias}
+            rainSoon={rainSoon}
+            location={location}
+            nowIndex={nowIndex}
+            isSaved={isSaved}
+            onToggleSave={toggleSave}
+          />
+          <ModelPanel data={data} units={units} weights={weights} nowIndex={nowIndex} />
           <DetailsSection data={data} details={details} units={units} nowIndex={nowIndex} />
           <HourlyChart
             data={data}
@@ -347,7 +350,7 @@ export default function App() {
             biasActive={!!bias}
             scope={scope?.scope}
           />
-          <SourcesPanel settings={sources} onChange={changeSources} />
+          <SourcesPanel settings={sources} onChange={changeSources} status={sourceStatus} />
         </>
       )}
 

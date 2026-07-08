@@ -4,7 +4,7 @@ import { callCounts } from '../lib/storage.js'
 
 // Manage optional forecast sources and watch this device's API usage.
 // Keyed services get a client-side budget so free tiers can't be blown past.
-export default function SourcesPanel({ settings, onChange }) {
+export default function SourcesPanel({ settings, onChange, status = {} }) {
   const [open, setOpen] = useState(false)
   const [keys, setKeys] = useState({
     openweather: settings.openweather?.key || '',
@@ -43,6 +43,9 @@ export default function SourcesPanel({ settings, onChange }) {
                   {s.label}
                 </label>
                 <span className="src-note">{s.note}</span>
+                {cfg.on && status[s.id] && (
+                  <span className={`src-status ${status[s.id].startsWith('error') ? 'err' : ''}`}>{status[s.id]}</span>
+                )}
                 {s.needsKey && (
                   <span className="src-key">
                     <input

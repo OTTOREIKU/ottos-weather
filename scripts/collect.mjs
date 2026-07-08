@@ -44,6 +44,66 @@ async function getJson(url) {
   return json
 }
 
+// ---- extra sources: NWS is keyless; OpenWeather/PirateWeather join the
+// scoring when their API keys are set as GitHub Actions repository secrets
+// (OPENWEATHER_API_KEY / PIRATEWEATHER_API_KEY) ----
+
+async function nwsDaily(loc) {
+  const pt = await getJson(`https://api.weather.gov/points/${loc.lat.toFixed(4)},${loc.lon.toFixed(4)}`)
+  const url = pt?.properties?.forecastHourly
+  if (!url) return null
+  const fc = await getJson(`${url}?units=si`)
+  const byDate = {}
+  for (const p of fc.properties.periods) {
+    if (!Number.isFinite(p.temperature)) continue
+    ;(byDate[p.startTime.slice(0, 10)] ||= []).push(p.temperature)
+  }
+  const out = {}
+  for (const [date, temps] of Object.entries(byDate)) {
+    if (temps.length >= 18) out[date] = { hi: Math.max(...temps), lo: Math.min(...temps), pr: null }
+  }
+  return out
+}
+
+async function owmDaily(loc, key) {
+  const j = await getJson(
+    `https://api.openweathermap.org/data/2.5/forecast?lat=${loc.lat.toFixed(4)}&lon=${loc.lon.toFixed(4)}&units=metric&appid=${key}`,
+  )
+  const off = j.city?.timezone ?? 0
+  const byDate = {}
+  for (const item of j.list) {
+    const date = new Date((item.dt + off) * 1000).toISOString().slice(0, 10)
+    const d = (byDate[date] ||= { temps: [], pr: 0 })
+    if (Number.isFinite(item.main?.temp)) d.temps.push(item.main.temp)
+    d.pr += (item.rain?.['3h'] ?? 0) + (item.snow?.['3h'] ?? 0)
+  }
+  const out = {}
+  for (const [date, d] of Object.entries(byDate)) {
+    // 3-hourly feed: 8 points on a full day
+    if (d.temps.length >= 7) out[date] = { hi: Math.max(...d.temps), lo: Math.min(...d.temps), pr: d.pr }
+  }
+  return out
+}
+
+async function pirateDaily(loc, key) {
+  const j = await getJson(
+    `https://api.pirateweather.net/forecast/${key}/${loc.lat.toFixed(4)},${loc.lon.toFixed(4)}?units=si&extend=hourly&exclude=minutely,alerts,daily`,
+  )
+  const off = (j.offset ?? 0) * 3600
+  const byDate = {}
+  for (const item of j.hourly?.data || []) {
+    const date = new Date((item.time + off) * 1000).toISOString().slice(0, 10)
+    const d = (byDate[date] ||= { temps: [], pr: 0 })
+    if (Number.isFinite(item.temperature)) d.temps.push(item.temperature)
+    d.pr += item.precipIntensity ?? 0
+  }
+  const out = {}
+  for (const [date, d] of Object.entries(byDate)) {
+    if (d.temps.length >= 18) out[date] = { hi: Math.max(...d.temps), lo: Math.min(...d.temps), pr: d.pr }
+  }
+  return out
+}
+
 const locations = read('public/data/locations.json', [])
 const log = read('public/data/log.json', {})
 const scores = read('public/data/scores.json', { models: {} })
@@ -65,6 +125,30 @@ for (const loc of locations) {
       forecast_days: '4',
     })
     const j = await getJson(`https://api.open-meteo.com/v1/forecast?${params}`)
+
+    // extra sources, best-effort per location
+    const extras = {}
+    try {
+      const nws = await nwsDaily(loc)
+      if (nws) extras.nws = nws
+    } catch (e) {
+      console.error(`nws snapshot failed: ${loc.name}: ${e.message}`)
+    }
+    if (process.env.OPENWEATHER_API_KEY) {
+      try {
+        extras.openweather = await owmDaily(loc, process.env.OPENWEATHER_API_KEY)
+      } catch (e) {
+        console.error(`openweather snapshot failed: ${loc.name}: ${e.message}`)
+      }
+    }
+    if (process.env.PIRATEWEATHER_API_KEY) {
+      try {
+        extras.pirate = await pirateDaily(loc, process.env.PIRATEWEATHER_API_KEY)
+      } catch (e) {
+        console.error(`pirate snapshot failed: ${loc.name}: ${e.message}`)
+      }
+    }
+
     for (const lead of LEADS) {
       const date = j.daily.time[lead]
       if (!date) continue
@@ -78,9 +162,12 @@ for (const loc of locations) {
           pr: j.daily[`precipitation_sum_${id}`]?.[lead] ?? null,
         }
       }
+      for (const [id, byDate] of Object.entries(extras)) {
+        if (byDate?.[date]) models[id] = byDate[date]
+      }
       log[key] = { name: loc.name, lat: loc.lat, lon: loc.lon, date, lead, savedAt: today, models }
     }
-    console.log(`snapshot ok: ${loc.name}`)
+    console.log(`snapshot ok: ${loc.name} (${Object.keys(extras).join('+') || 'core only'})`)
   } catch (e) {
     console.error(`snapshot failed: ${loc.name}: ${e.message}`)
   }
@@ -150,7 +237,7 @@ for (const entries of byLoc.values()) {
   for (const entry of entries) {
     const actual = actualByDate[entry.date]
     if (!actual || !Number.isFinite(actual.hi) || !Number.isFinite(actual.lo)) continue
-    for (const id of MODELS) {
+    for (const id of Object.keys(entry.models)) {
       const f = entry.models[id]
       if (!f || !Number.isFinite(f.hi) || !Number.isFinite(f.lo)) continue
       const err = (Math.abs(f.hi - actual.hi) + Math.abs(f.lo - actual.lo)) / 2

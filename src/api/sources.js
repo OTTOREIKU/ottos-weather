@@ -205,6 +205,12 @@ async function fetchOpenWeather(core, loc, key) {
   interpolate(hourly.relative_humidity_2m)
   interpolate(hourly.pressure_msl)
   interpolate(hourly.cloud_cover)
+  // the 3-hourly feed starts in the future; extend its first point back a
+  // couple of hours so OpenWeather participates in the "now" readouts too
+  for (const arr of [hourly.temperature_2m, hourly.relative_humidity_2m, hourly.pressure_msl, hourly.cloud_cover, hourly.weather_code]) {
+    const first = arr.findIndex(Number.isFinite)
+    if (first > 0) for (let j = Math.max(0, first - 2); j < first; j++) arr[j] = arr[first]
+  }
   return { hourly, daily: computeDaily(core, hourly) }
 }
 
@@ -245,27 +251,51 @@ async function fetchPirate(core, loc, key) {
 }
 
 // Fetch every enabled extra source and merge it into a copy of the core
-// forecast. Returns null when nothing was added.
+// forecast. Returns { merged, status } where merged is null when nothing was
+// added and status carries a per-source result string for the sources panel.
 export async function fetchExtraSources(core, loc, settings) {
   const jobs = []
-  const wrap = (id, promise) => promise.then((d) => (d ? [id, d] : null)).catch(() => null)
+  const status = {}
+  const wrap = (id, promise) =>
+    promise
+      .then((d) => {
+        if (d) {
+          const hours = d.hourly.temperature_2m.filter(Number.isFinite).length
+          status[id] = `active · ${hours}h of data`
+          return [id, d]
+        }
+        status[id] = 'no data for this location'
+        return null
+      })
+      .catch((e) => {
+        status[id] = `error: ${String(e.message || e).slice(0, 60)}`
+        return null
+      })
 
   if (settings.nws?.on) {
     storage.bumpCall('nws')
     jobs.push(wrap('nws', fetchNWS(core, loc)))
   }
-  if (settings.openweather?.on && settings.openweather.key && storage.underCap('openweather', 900)) {
-    storage.bumpCall('openweather')
-    jobs.push(wrap('openweather', fetchOpenWeather(core, loc, settings.openweather.key.trim())))
+  if (settings.openweather?.on && settings.openweather.key) {
+    if (storage.underCap('openweather', 900)) {
+      storage.bumpCall('openweather')
+      jobs.push(wrap('openweather', fetchOpenWeather(core, loc, settings.openweather.key.trim())))
+    } else {
+      status.openweather = 'daily budget reached, paused'
+    }
   }
-  if (settings.pirate?.on && settings.pirate.key && storage.underCap('pirate', 300, 9000)) {
-    storage.bumpCall('pirate')
-    jobs.push(wrap('pirate', fetchPirate(core, loc, settings.pirate.key.trim())))
+  if (settings.pirate?.on && settings.pirate.key) {
+    if (storage.underCap('pirate', 300, 9000)) {
+      storage.bumpCall('pirate')
+      jobs.push(wrap('pirate', fetchPirate(core, loc, settings.pirate.key.trim())))
+    } else {
+      status.pirate = 'budget reached, paused'
+    }
   }
-  if (!jobs.length) return null
+  if (!jobs.length) return { merged: null, status }
 
   const done = (await Promise.all(jobs)).filter(Boolean)
-  if (!done.length) return null
+  if (!done.length) return { merged: null, status }
 
   const merged = { ...core, hourly: { ...core.hourly }, daily: { ...core.daily } }
   for (const v of Object.keys(merged.hourly)) merged.hourly[v] = { ...merged.hourly[v] }
@@ -278,5 +308,5 @@ export async function fetchExtraSources(core, loc, settings) {
       if (merged.daily[v]) merged.daily[v][id] = arr
     }
   }
-  return merged
+  return { merged, status }
 }

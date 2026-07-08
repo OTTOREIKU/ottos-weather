@@ -38,6 +38,7 @@ export default function HourlyChart({ data, units, weights, bias, startIndex, ho
   const [width, setWidth] = useState(720)
   const [hover, setHover] = useState(null)
   const [pinned, setPinned] = useState(0) // last selected hour, for the mobile readout
+  const [solo, setSolo] = useState(null) // isolate a single model via the legend
 
   useEffect(() => {
     const el = wrapRef.current
@@ -120,7 +121,11 @@ export default function HourlyChart({ data, units, weights, bias, startIndex, ho
   const ticks = []
   for (let t = Math.ceil(yLo / step) * step; t <= yHi; t += step) ticks.push(t)
 
-  const pMax = Math.max(0.5, ...view.precipAgg.mean.filter(Number.isFinite))
+  const soloActive = solo && Array.isArray(view.perModelTemp[solo]) ? solo : null
+  const soloModel = soloActive ? MODELS.find((m) => m.id === soloActive) : null
+  const precipSeries = soloActive ? view.perModelPrecip[soloActive] || [] : view.precipAgg.mean
+
+  const pMax = Math.max(0.5, ...precipSeries.filter(Number.isFinite))
   const pTop = M.top + TEMP_H + GAP
   const yP = (v) => pTop + PRECIP_H - (v / pMax) * PRECIP_H
 
@@ -195,13 +200,18 @@ export default function HourlyChart({ data, units, weights, bias, startIndex, ho
 
   const ttLeft = hover != null ? Math.min(x(sel) + 12, width - 196) : 0
   const selRain = agreementAt(view.perModelPrecip, sel)
-  const selRainMean = view.precipAgg.mean[sel]
+  const selRainMean = precipSeries[sel]
   const selPr = precip(selRainMean, units)
 
-  const readoutRows = MODELS.map((m) => {
-    const v = view.perModelTemp[m.id]?.[sel]
-    return Number.isFinite(v) ? { ...m, temp: Math.round(u(v)) } : null
-  }).filter(Boolean)
+  const readoutRows = MODELS.filter((m) => !soloActive || m.id === soloActive)
+    .map((m) => {
+      const v = view.perModelTemp[m.id]?.[sel]
+      return Number.isFinite(v) ? { ...m, temp: Math.round(u(v)) } : null
+    })
+    .filter(Boolean)
+
+  const selMean = soloActive ? view.perModelTemp[soloActive]?.[sel] : view.agg.mean[sel]
+  const meanLabel = soloModel ? soloModel.label : 'Mean'
 
   return (
     <div className="card chart-card">
@@ -269,31 +279,33 @@ export default function HourlyChart({ data, units, weights, bias, startIndex, ho
             )
           })}
 
-          <path d={bandPath} fill="rgba(255,255,255,0.07)" />
+          {!soloActive && <path d={bandPath} fill="rgba(255,255,255,0.07)" />}
 
-          {MODELS.map((m) => (
+          {MODELS.filter((m) => !soloActive || m.id === soloActive).map((m) => (
             <path
               key={m.id}
               d={linePath(view.perModelTemp[m.id])}
               fill="none"
               stroke={m.color}
-              strokeWidth="1.5"
-              strokeOpacity="0.6"
+              strokeWidth={soloActive ? '2.5' : '1.5'}
+              strokeOpacity={soloActive ? '1' : '0.6'}
               strokeLinejoin="round"
               strokeLinecap="round"
             />
           ))}
 
-          <path
-            d={linePath(view.agg.mean)}
-            fill="none"
-            stroke="var(--ink)"
-            strokeWidth="2.5"
-            strokeLinejoin="round"
-            strokeLinecap="round"
-          />
+          {!soloActive && (
+            <path
+              d={linePath(view.agg.mean)}
+              fill="none"
+              stroke="var(--ink)"
+              strokeWidth="2.5"
+              strokeLinejoin="round"
+              strokeLinecap="round"
+            />
+          )}
 
-          {view.precipAgg.mean.map((v, i) =>
+          {precipSeries.map((v, i) =>
             Number.isFinite(v) && v > 0.01 ? (
               <rect
                 key={i}
@@ -302,7 +314,7 @@ export default function HourlyChart({ data, units, weights, bias, startIndex, ho
                 width={Math.max(2, hourW - 2)}
                 height={pTop + PRECIP_H - yP(v)}
                 rx="2"
-                fill="var(--accent)"
+                fill={soloModel ? soloModel.color : 'var(--accent)'}
                 fillOpacity="0.9"
               />
             ) : null,
@@ -354,17 +366,27 @@ export default function HourlyChart({ data, units, weights, bias, startIndex, ho
               </div>
             ))}
             <div className="tt-row tt-mean">
-              <span>Mean</span>
-              <span>{Number.isFinite(view.agg.mean[sel]) ? Math.round(u(view.agg.mean[sel])) : '–'}°</span>
+              <span>{meanLabel}</span>
+              <span>{Number.isFinite(selMean) ? Math.round(u(selMean)) : '–'}°</span>
             </div>
-            {selRain.agree > 0 && (
-              <div className="tt-row">
-                <span className="l">Rain</span>
-                <span>
-                  {selRain.agree}/{selRain.total} models · {selPr.value} {selPr.unit}
-                </span>
-              </div>
-            )}
+            {soloActive
+              ? Number.isFinite(selRainMean) &&
+                selRainMean > 0.01 && (
+                  <div className="tt-row">
+                    <span className="l">Rain</span>
+                    <span>
+                      {selPr.value} {selPr.unit}
+                    </span>
+                  </div>
+                )
+              : selRain.agree > 0 && (
+                  <div className="tt-row">
+                    <span className="l">Rain</span>
+                    <span>
+                      {selRain.agree}/{selRain.total} models · {selPr.value} {selPr.unit}
+                    </span>
+                  </div>
+                )}
           </div>
         )}
       </div>
@@ -381,15 +403,23 @@ export default function HourlyChart({ data, units, weights, bias, startIndex, ho
             </span>
           )}
           <span className="pr-mean">
-            {Number.isFinite(view.agg.mean[sel]) ? Math.round(u(view.agg.mean[sel])) : '–'}°
-            <small>
-              {' '}
-              ({Number.isFinite(view.agg.min[sel]) ? Math.round(u(view.agg.min[sel])) : '–'}–
-              {Number.isFinite(view.agg.max[sel]) ? Math.round(u(view.agg.max[sel])) : '–'}°)
-            </small>
+            {Number.isFinite(selMean) ? Math.round(u(selMean)) : '–'}°
+            {!soloActive && (
+              <small>
+                {' '}
+                ({Number.isFinite(view.agg.min[sel]) ? Math.round(u(view.agg.min[sel])) : '–'}–
+                {Number.isFinite(view.agg.max[sel]) ? Math.round(u(view.agg.max[sel])) : '–'}°)
+              </small>
+            )}
           </span>
           <span className="pr-rain">
-            {selRain.agree > 0 ? `💧 ${selRain.agree}/${selRain.total} · ${selPr.value} ${selPr.unit}` : 'dry'}
+            {soloActive
+              ? Number.isFinite(selRainMean) && selRainMean > 0.01
+                ? `💧 ${selPr.value} ${selPr.unit}`
+                : 'dry'
+              : selRain.agree > 0
+                ? `💧 ${selRain.agree}/${selRain.total} · ${selPr.value} ${selPr.unit}`
+                : 'dry'}
           </span>
         </div>
         <div className="pr-models">
@@ -403,17 +433,25 @@ export default function HourlyChart({ data, units, weights, bias, startIndex, ho
       </div>
 
       <div className="legend">
-        <span className="item">
+        <button className={`item ${soloActive ? 'dim' : ''}`} onClick={() => setSolo(null)}>
           <span className="line-key" /> Mean
-        </span>
-        <span className="item">
-          <span className="swatch" style={{ background: 'rgba(255,255,255,0.14)', borderRadius: 2, width: 12 }} /> Model spread
-        </span>
-        {MODELS.filter((m) => Array.isArray(view.perModelTemp[m.id])).map((m) => (
-          <span className="item" key={m.id}>
-            <span className="swatch" style={{ background: m.color }} /> {m.label}
+        </button>
+        {!soloActive && (
+          <span className="item">
+            <span className="swatch" style={{ background: 'rgba(255,255,255,0.14)', borderRadius: 2, width: 12 }} /> Model spread
           </span>
+        )}
+        {MODELS.filter((m) => Array.isArray(view.perModelTemp[m.id])).map((m) => (
+          <button
+            className={`item ${soloActive === m.id ? 'solo' : soloActive ? 'dim' : ''}`}
+            key={m.id}
+            onClick={() => setSolo(solo === m.id ? null : m.id)}
+            title={soloActive === m.id ? 'Show all models' : `Show only ${m.label}`}
+          >
+            <span className="swatch" style={{ background: m.color }} /> {m.label}
+          </button>
         ))}
+        <span className="legend-hint">{soloActive ? `showing ${soloModel.label} only · tap again for all` : 'tap a model to isolate it'}</span>
       </div>
     </div>
   )
