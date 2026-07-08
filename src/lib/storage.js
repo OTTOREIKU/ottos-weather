@@ -19,7 +19,7 @@ function write(key, value) {
   try {
     localStorage.setItem(key, JSON.stringify(value))
   } catch {
-    /* storage full or unavailable — non-fatal */
+    /* storage full or unavailable, non-fatal */
   }
 }
 
@@ -28,6 +28,10 @@ export const saveLocations = (list) => write(LOC_KEY, list)
 
 export const loadUnits = () => read(UNITS_KEY, 'imperial')
 export const saveUnits = (units) => write(UNITS_KEY, units)
+
+// generic persisted settings (hourly window, auto-refresh, weighting toggle)
+export const loadSetting = (key, fallback) => read(`wa.${key}`, fallback)
+export const saveSetting = (key, value) => write(`wa.${key}`, value)
 
 export const locationKey = (loc) => `${loc.lat.toFixed(2)},${loc.lon.toFixed(2)}`
 

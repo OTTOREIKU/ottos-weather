@@ -21,11 +21,19 @@ when they diverge you can see exactly how much.
 - Rain probability is computed as **model agreement** (share of models predicting
   precipitation), not a single model's percentage
 
-The app also silently logs each day's per-model forecasts to localStorage (groundwork
-for a future accuracy scoreboard | compare forecasts against observed history and weight
-models by how well they perform for your location).
+## Accuracy scoring
 
-No API keys, no backend. Everything is fetched client-side from free, keyless APIs.
+A scheduled GitHub Action (daily) snapshots every model's 1, 2, and 3 day ahead forecasts
+for the locations in `public/data/locations.json`, then verifies them against observed
+conditions once each day has passed. Running scores live in `public/data/scores.json` and
+power the Model Scorecard in the app: average temperature error and rain hit rate per model.
+Once every model has 14+ verified days, the app can weight the forecast mean toward the
+models with the best track record (toggle in the scorecard).
+
+Edit `public/data/locations.json` to change which locations get scored.
+
+No API keys, no server. Everything is fetched client-side from free, keyless APIs, and the
+scoring data is stored in the repo itself by the workflow.
 
 ## Data sources
 

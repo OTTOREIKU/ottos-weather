@@ -3,7 +3,6 @@ import { MODELS } from '../api/openMeteo.js'
 import { aggregateSeries, agreementAt } from '../lib/aggregate.js'
 import { cToF, precip } from '../lib/convert.js'
 
-const HOURS = 48
 const M = { left: 46, right: 14, top: 14 }
 const TEMP_H = 220
 const GAP = 10
@@ -30,10 +29,13 @@ function niceStep(span, target) {
   return 50
 }
 
-export default function HourlyChart({ data, units, nowIndex }) {
+// Generic multi-model hourly chart for any window of the forecast:
+// the main "next N hours" view and the per-day detail both render through this.
+export default function HourlyChart({ data, units, weights, startIndex, hours, nowIndex, title, headerExtra }) {
   const wrapRef = useRef(null)
-  const [width, setWidth] = useState(900)
+  const [width, setWidth] = useState(720)
   const [hover, setHover] = useState(null)
+  const [pinned, setPinned] = useState(0) // last selected hour, for the mobile readout
 
   useEffect(() => {
     const el = wrapRef.current
@@ -43,7 +45,7 @@ export default function HourlyChart({ data, units, nowIndex }) {
     const ro = typeof ResizeObserver !== 'undefined' ? new ResizeObserver(measure) : null
     ro?.observe(el)
     window.addEventListener('resize', measure)
-    // fallback poll — setWidth with an unchanged value is a no-op re-render
+    // fallback poll for environments where neither fires; no-op when unchanged
     const poll = setInterval(measure, 1000)
     return () => {
       ro?.disconnect()
@@ -55,40 +57,50 @@ export default function HourlyChart({ data, units, nowIndex }) {
   const u = (c) => (units === 'imperial' ? cToF(c) : c)
 
   const view = useMemo(() => {
-    const start = nowIndex
-    const end = Math.min(start + HOURS, data.hourlyTime.length)
-    const n = end - start
+    const start = Math.max(0, startIndex)
+    const end = Math.min(start + hours, data.hourlyTime.length)
+    const n = Math.max(1, end - start)
     const times = data.hourlyTime.slice(start, end)
 
-    const perModelTemp = {}
-    for (const m of MODELS) {
-      const arr = data.hourly.temperature_2m[m.id]
-      perModelTemp[m.id] = Array.isArray(arr) ? arr.slice(start, end) : null
+    const slice = (variable) => {
+      const out = {}
+      for (const m of MODELS) {
+        const arr = data.hourly[variable][m.id]
+        out[m.id] = Array.isArray(arr) ? arr.slice(start, end) : null
+      }
+      return out
     }
-    const agg = aggregateSeries(perModelTemp)
-
-    const perModelPrecip = {}
-    for (const m of MODELS) {
-      const arr = data.hourly.precipitation[m.id]
-      perModelPrecip[m.id] = Array.isArray(arr) ? arr.slice(start, end) : null
+    const perModelTemp = slice('temperature_2m')
+    const perModelPrecip = slice('precipitation')
+    return {
+      start,
+      n,
+      times,
+      perModelTemp,
+      agg: aggregateSeries(perModelTemp, weights),
+      perModelPrecip,
+      precipAgg: aggregateSeries(perModelPrecip),
     }
-    const precipAgg = aggregateSeries(perModelPrecip)
+  }, [data, startIndex, hours, weights])
 
-    return { start, n, times, perModelTemp, agg, perModelPrecip, precipAgg }
-  }, [data, nowIndex])
+  // reset the selection when the window moves
+  useEffect(() => {
+    const nowInWindow = nowIndex - view.start
+    setPinned(nowInWindow >= 0 && nowInWindow < view.n ? nowInWindow : 0)
+    setHover(null)
+  }, [view.start, view.n, nowIndex])
 
   const innerW = width - M.left - M.right
   const hourW = innerW / view.n
   const x = (i) => M.left + (i + 0.5) * hourW
 
-  // temperature y-scale over all model values in the window
   const allTemps = Object.values(view.perModelTemp)
     .filter(Boolean)
     .flat()
     .filter(Number.isFinite)
     .map(u)
-  const tMin = Math.min(...allTemps)
-  const tMax = Math.max(...allTemps)
+  const tMin = allTemps.length ? Math.min(...allTemps) : 0
+  const tMax = allTemps.length ? Math.max(...allTemps) : 1
   const pad = Math.max(1.5, (tMax - tMin) * 0.12)
   const yLo = tMin - pad
   const yHi = tMax + pad
@@ -98,12 +110,17 @@ export default function HourlyChart({ data, units, nowIndex }) {
   const ticks = []
   for (let t = Math.ceil(yLo / step) * step; t <= yHi; t += step) ticks.push(t)
 
-  // precipitation scale (native mm)
   const pMax = Math.max(0.5, ...view.precipAgg.mean.filter(Number.isFinite))
   const pTop = M.top + TEMP_H + GAP
   const yP = (v) => pTop + PRECIP_H - (v / pMax) * PRECIP_H
 
   const height = M.top + TEMP_H + GAP + PRECIP_H + AXIS_H
+
+  // x-label cadence: denser for short windows, sparser on narrow screens
+  const labelEvery = useMemo(() => {
+    const base = view.n <= 12 ? 2 : view.n <= 24 ? 3 : 6
+    return width < 520 ? base * 2 : base
+  }, [view.n, width])
 
   const linePath = (arr) => {
     let d = ''
@@ -136,24 +153,58 @@ export default function HourlyChart({ data, units, nowIndex }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [view, width, units])
 
-  const onMove = (e) => {
+  const indexFromEvent = (e) => {
     const rect = wrapRef.current.getBoundingClientRect()
     const mx = e.clientX - rect.left
-    const i = Math.max(0, Math.min(view.n - 1, Math.floor((mx - M.left) / hourW)))
-    setHover(i)
+    return Math.max(0, Math.min(view.n - 1, Math.floor((mx - M.left) / hourW)))
   }
 
+  const onPointerMove = (e) => {
+    // mouse hovers freely; touch scrubs while the finger is down
+    if (e.pointerType !== 'mouse' && e.buttons === 0) return
+    const i = indexFromEvent(e)
+    setHover(i)
+    setPinned(i)
+  }
+
+  const onPointerDown = (e) => {
+    const i = indexFromEvent(e)
+    setHover(i)
+    setPinned(i)
+  }
+
+  const onPointerLeave = (e) => {
+    if (e.pointerType === 'mouse') setHover(null)
+  }
+
+  const sel = hover ?? pinned
+  const nowInWindow = nowIndex - view.start
+  const showNow = nowInWindow >= 0 && nowInWindow < view.n
+
   const ttLeft = hover != null ? Math.min(x(hover) + 12, width - 196) : 0
-  const rain = hover != null ? agreementAt(view.perModelPrecip, hover) : null
-  const rainMean = hover != null ? view.precipAgg.mean[hover] : null
-  const pr = precip(rainMean, units)
+  const selRain = agreementAt(view.perModelPrecip, sel)
+  const selRainMean = view.precipAgg.mean[sel]
+  const selPr = precip(selRainMean, units)
+
+  const readoutRows = MODELS.map((m) => {
+    const v = view.perModelTemp[m.id]?.[sel]
+    return Number.isFinite(v) ? { ...m, temp: Math.round(u(v)) } : null
+  }).filter(Boolean)
 
   return (
     <div className="card chart-card">
-      <div className="section-title">Next 48 hours — temperature per model</div>
-      <div className="chart-wrap" ref={wrapRef} onMouseMove={onMove} onMouseLeave={() => setHover(null)}>
+      <div className="chart-head">
+        <div className="section-title">{title}</div>
+        {headerExtra}
+      </div>
+      <div
+        className="chart-wrap"
+        ref={wrapRef}
+        onPointerMove={onPointerMove}
+        onPointerDown={onPointerDown}
+        onPointerLeave={onPointerLeave}
+      >
         <svg width={width} height={height} role="img" aria-label="Hourly temperature forecast per model">
-          {/* gridlines + y ticks */}
           {ticks.map((t) => (
             <g key={t}>
               <line x1={M.left} x2={width - M.right} y1={yT(t)} y2={yT(t)} stroke="var(--grid)" strokeWidth="1" />
@@ -163,25 +214,25 @@ export default function HourlyChart({ data, units, nowIndex }) {
             </g>
           ))}
 
-          {/* day boundaries + x labels */}
           {view.times.map((iso, i) => {
             const h = Number(iso.slice(11, 13))
             const els = []
             if (h === 0 && i > 0) {
               els.push(
-                <line key="d" x1={x(i) - hourW / 2} x2={x(i) - hourW / 2} y1={M.top} y2={pTop + PRECIP_H} stroke="var(--surface-3)" strokeWidth="1" />,
+                <line
+                  key="d"
+                  x1={x(i) - hourW / 2}
+                  x2={x(i) - hourW / 2}
+                  y1={M.top}
+                  y2={pTop + PRECIP_H}
+                  stroke="var(--surface-3)"
+                  strokeWidth="1"
+                />,
                 <text key="dl" x={x(i)} y={height - 4} fontSize="11" fontWeight="700" fill="var(--ink-2)">
                   {weekday(iso)}
                 </text>,
               )
-            }
-            if (i === 0) {
-              els.push(
-                <text key="now" x={x(i) - hourW / 2} y={height - 4} fontSize="11" fontWeight="700" fill="var(--ink)">
-                  Now
-                </text>,
-              )
-            } else if (h % 6 === 0 && h !== 0 && i > 2) {
+            } else if (h % labelEvery === 0 && h !== 0 && i !== nowInWindow) {
               els.push(
                 <text key="h" x={x(i)} y={height - 4} textAnchor="middle" fontSize="11" fill="var(--ink-3)">
                   {hourLabel(iso)}
@@ -191,10 +242,8 @@ export default function HourlyChart({ data, units, nowIndex }) {
             return els.length ? <g key={iso}>{els}</g> : null
           })}
 
-          {/* spread band */}
           <path d={bandPath} fill="rgba(255,255,255,0.07)" />
 
-          {/* per-model lines */}
           {MODELS.map((m) => (
             <path
               key={m.id}
@@ -208,10 +257,15 @@ export default function HourlyChart({ data, units, nowIndex }) {
             />
           ))}
 
-          {/* mean line */}
-          <path d={linePath(view.agg.mean)} fill="none" stroke="var(--ink)" strokeWidth="2.5" strokeLinejoin="round" strokeLinecap="round" />
+          <path
+            d={linePath(view.agg.mean)}
+            fill="none"
+            stroke="var(--ink)"
+            strokeWidth="2.5"
+            strokeLinejoin="round"
+            strokeLinecap="round"
+          />
 
-          {/* precipitation bars (mean across models) */}
           {view.precipAgg.mean.map((v, i) =>
             Number.isFinite(v) && v > 0.01 ? (
               <rect
@@ -231,10 +285,26 @@ export default function HourlyChart({ data, units, nowIndex }) {
             rain
           </text>
 
-          {/* crosshair */}
-          {hover != null && (
-            <line x1={x(hover)} x2={x(hover)} y1={M.top} y2={pTop + PRECIP_H} stroke="var(--ink-3)" strokeWidth="1" />
+          {/* now marker */}
+          {showNow && (
+            <g>
+              <line
+                x1={x(nowInWindow)}
+                x2={x(nowInWindow)}
+                y1={M.top}
+                y2={pTop + PRECIP_H}
+                stroke="var(--ink-2)"
+                strokeWidth="1"
+                strokeDasharray="1 3"
+              />
+              <text x={x(nowInWindow)} y={height - 4} textAnchor="middle" fontSize="11" fontWeight="700" fill="var(--ink)">
+                Now
+              </text>
+            </g>
           )}
+
+          {/* selection crosshair */}
+          <line x1={x(sel)} x2={x(sel)} y1={M.top} y2={pTop + PRECIP_H} stroke="var(--ink-3)" strokeWidth="1" />
         </svg>
 
         {hover != null && (
@@ -242,33 +312,57 @@ export default function HourlyChart({ data, units, nowIndex }) {
             <div className="tt-time">
               {weekday(view.times[hover])} {hourLabel(view.times[hover])}
             </div>
-            {MODELS.map((m) => {
-              const v = view.perModelTemp[m.id]?.[hover]
-              if (!Number.isFinite(v)) return null
-              return (
-                <div className="tt-row" key={m.id}>
-                  <span className="l">
-                    <span className="swatch" style={{ background: m.color }} />
-                    {m.label}
-                  </span>
-                  <span>{Math.round(u(v))}°</span>
-                </div>
-              )
-            })}
+            {readoutRows.map((m) => (
+              <div className="tt-row" key={m.id}>
+                <span className="l">
+                  <span className="swatch" style={{ background: m.color }} />
+                  {m.label}
+                </span>
+                <span>{m.temp}°</span>
+              </div>
+            ))}
             <div className="tt-row tt-mean">
               <span>Mean</span>
               <span>{Number.isFinite(view.agg.mean[hover]) ? Math.round(u(view.agg.mean[hover])) : '–'}°</span>
             </div>
-            {rain && rain.agree > 0 && (
+            {selRain.agree > 0 && (
               <div className="tt-row">
                 <span className="l">Rain</span>
                 <span>
-                  {rain.agree}/{rain.total} models · {pr.value} {pr.unit}
+                  {selRain.agree}/{selRain.total} models · {selPr.value} {selPr.unit}
                 </span>
               </div>
             )}
           </div>
         )}
+      </div>
+
+      {/* pinned readout for touch devices: drag across the chart to scrub */}
+      <div className="pin-readout">
+        <div className="pr-head">
+          <span className="pr-time">
+            {weekday(view.times[sel])} {hourLabel(view.times[sel])}
+          </span>
+          <span className="pr-mean">
+            {Number.isFinite(view.agg.mean[sel]) ? Math.round(u(view.agg.mean[sel])) : '–'}°
+            <small>
+              {' '}
+              ({Number.isFinite(view.agg.min[sel]) ? Math.round(u(view.agg.min[sel])) : '–'}–
+              {Number.isFinite(view.agg.max[sel]) ? Math.round(u(view.agg.max[sel])) : '–'}°)
+            </small>
+          </span>
+          <span className="pr-rain">
+            {selRain.agree > 0 ? `💧 ${selRain.agree}/${selRain.total} · ${selPr.value} ${selPr.unit}` : 'dry'}
+          </span>
+        </div>
+        <div className="pr-models">
+          {readoutRows.map((m) => (
+            <span className="pr-chip" key={m.id}>
+              <span className="swatch" style={{ background: m.color }} />
+              {m.label} {m.temp}°
+            </span>
+          ))}
+        </div>
       </div>
 
       <div className="legend">

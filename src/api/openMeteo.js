@@ -1,4 +1,4 @@
-// Open-Meteo API — forecast (multi-model), geocoding. No key required.
+// Open-Meteo API: forecast (multi-model), geocoding. No key required.
 // Colors are the dark-mode categorical palette slots, fixed order per model.
 export const MODELS = [
   { id: 'ecmwf_ifs025', label: 'ECMWF', agency: 'ECMWF · Europe', color: '#3987e5' },

@@ -1,5 +1,5 @@
 import React from 'react'
-import { stats, valuesAt, consensusCode, spreadTone } from '../lib/aggregate.js'
+import { kstats, valuesAt, consensusCode, spreadTone } from '../lib/aggregate.js'
 import { describe } from '../lib/weatherCodes.js'
 import { temp, wind, precip } from '../lib/convert.js'
 
@@ -15,19 +15,19 @@ function fmtClock(iso) {
   return `${h12}:${String(m).padStart(2, '0')} ${ampm}`
 }
 
-export default function CurrentCard({ data, units, location, nowIndex, isSaved, onToggleSave }) {
-  const at = (v) => Object.values(valuesAt(data.hourly[v], nowIndex))
-  const tempStats = stats(at('temperature_2m'))
-  const feels = stats(at('apparent_temperature'))
-  const humidity = stats(at('relative_humidity_2m'))
-  const windSt = stats(at('wind_speed_10m'))
-  const cloud = stats(at('cloud_cover'))
-  const rain = stats(at('precipitation'))
-  const code = consensusCode(at('weather_code'))
+export default function CurrentCard({ data, units, weights, location, nowIndex, isSaved, onToggleSave }) {
+  const at = (v) => valuesAt(data.hourly[v], nowIndex)
+  const tempStats = kstats(at('temperature_2m'), weights)
+  const feels = kstats(at('apparent_temperature'), weights)
+  const humidity = kstats(at('relative_humidity_2m'))
+  const windSt = kstats(at('wind_speed_10m'))
+  const cloud = kstats(at('cloud_cover'))
+  const rain = kstats(at('precipitation'))
+  const code = consensusCode(Object.values(at('weather_code')))
   const cond = describe(code)
 
-  const hi = stats(Object.values(valuesAt(data.daily.temperature_2m_max, 0)))
-  const lo = stats(Object.values(valuesAt(data.daily.temperature_2m_min, 0)))
+  const hi = kstats(valuesAt(data.daily.temperature_2m_max, 0), weights)
+  const lo = kstats(valuesAt(data.daily.temperature_2m_min, 0), weights)
   const sunrise = Object.values(data.daily.sunrise).find(Array.isArray)?.[0]
   const sunset = Object.values(data.daily.sunset).find(Array.isArray)?.[0]
 
@@ -41,7 +41,7 @@ export default function CurrentCard({ data, units, location, nowIndex, isSaved, 
       <div className="current-head">
         <h2>{location.name}</h2>
         <span className="tz">{[location.admin1, location.country].filter(Boolean).join(' · ')}</span>
-        <button className={`star ${isSaved ? 'on' : ''}`} onClick={onToggleSave} title={isSaved ? 'Remove from saved' : 'Save location'}>
+        <button className={`star ${isSaved ? 'on' : ''}`} onClick={onToggleSave} title={isSaved ? 'Remove favorite' : 'Add to favorites'}>
           {isSaved ? '★' : '☆'}
         </button>
       </div>
@@ -55,6 +55,7 @@ export default function CurrentCard({ data, units, location, nowIndex, isSaved, 
           <div className="badge">
             <span className="dot" style={{ background: TONE_COLOR[tone.tone] }} />
             {TONE_ICON[tone.tone]} {tone.label} · {temp(tempStats?.min, units)}–{temp(tempStats?.max, units)}° across {tempStats?.count ?? 0} models
+            {weights ? ' · accuracy-weighted' : ''}
           </div>
         </div>
       </div>

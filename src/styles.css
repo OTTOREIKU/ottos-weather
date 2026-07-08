@@ -1,4 +1,4 @@
-/* Dark, flat theme — tinted surfaces, no borders */
+/* Dark, flat theme: tinted surfaces, no borders */
 :root {
   --page: #0d0d0d;
   --surface: #1a1a19;
@@ -180,12 +180,27 @@ input {
   color: #fff;
 }
 
-/* ---------- saved location chips ---------- */
-.chips {
+/* ---------- favorites ---------- */
+.fav-row {
   display: flex;
+  align-items: center;
   gap: 8px;
   flex-wrap: wrap;
   margin-bottom: 4px;
+  min-height: 30px;
+}
+
+.fav-label {
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--warning);
+}
+
+.fav-hint {
+  font-size: 12.5px;
+  color: var(--ink-3);
 }
 
 .chip {
@@ -507,6 +522,18 @@ input {
   border-radius: 10px;
   padding: 12px 12px 10px;
   text-align: center;
+  font: inherit;
+  display: block;
+  width: 100%;
+}
+
+.day-card:hover {
+  background: var(--surface-3);
+}
+
+.day-card.selected {
+  background: var(--surface-3);
+  box-shadow: inset 0 -3px 0 var(--accent);
 }
 
 .day-card .d {
@@ -653,6 +680,443 @@ input {
 
 .footer a {
   color: var(--ink-2);
+}
+
+/* ---------- chart header, window toggle, day detail ---------- */
+.chart-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.segmented.small button {
+  padding: 4px 12px;
+  font-size: 13px;
+}
+
+.close-btn {
+  color: var(--ink-3);
+  background: var(--surface-2);
+  border-radius: 8px;
+  padding: 4px 12px;
+  font-size: 13px;
+}
+
+.close-btn:hover {
+  color: var(--ink);
+  background: var(--surface-3);
+}
+
+.chart-wrap {
+  touch-action: pan-y;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+/* ---------- pinned readout (touch devices) ---------- */
+.pin-readout {
+  display: none;
+  background: var(--surface-2);
+  border-radius: 10px;
+  padding: 10px 12px;
+  margin-top: 10px;
+}
+
+.pin-readout .pr-head {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.pin-readout .pr-time {
+  font-weight: 700;
+}
+
+.pin-readout .pr-mean {
+  font-weight: 700;
+  font-size: 18px;
+}
+
+.pin-readout .pr-mean small {
+  font-weight: 400;
+  color: var(--ink-3);
+  font-size: 12.5px;
+}
+
+.pin-readout .pr-rain {
+  color: var(--accent);
+  font-size: 13px;
+}
+
+.pin-readout .pr-models {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin-top: 8px;
+}
+
+.pin-readout .pr-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  background: var(--surface-3);
+  border-radius: 999px;
+  padding: 3px 9px;
+  font-size: 12px;
+  color: var(--ink-2);
+}
+
+.pin-readout .swatch {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+}
+
+@media (hover: none), (max-width: 640px) {
+  .chart-tooltip {
+    display: none;
+  }
+
+  .pin-readout {
+    display: block;
+  }
+
+  .legend {
+    display: none;
+  }
+}
+
+/* ---------- model panel toggle ---------- */
+.panel-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  text-align: left;
+}
+
+.panel-toggle .chev {
+  color: var(--ink-3);
+  font-size: 13px;
+}
+
+.panel-body {
+  margin-top: 12px;
+}
+
+/* ---------- tabs toolbar (refresh / auto) ---------- */
+.tabs {
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.toolbar {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.updated {
+  font-size: 12px;
+  color: var(--ink-3);
+  white-space: nowrap;
+}
+
+.refresh-btn {
+  width: 34px;
+  height: 34px;
+  border-radius: 10px;
+  background: var(--surface);
+  color: var(--ink-2);
+  font-size: 17px;
+}
+
+.refresh-btn:hover {
+  background: var(--surface-3);
+  color: var(--ink);
+}
+
+.refresh-btn:disabled {
+  opacity: 0.5;
+}
+
+.auto-select {
+  font: inherit;
+  font-size: 12.5px;
+  color: var(--ink-2);
+  background: var(--surface);
+  border: none;
+  border-radius: 10px;
+  padding: 8px 8px;
+  outline: none;
+}
+
+/* ---------- radar: overlay, time, timeline ---------- */
+.radar-map-wrap {
+  position: relative;
+}
+
+.radar-overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(13, 13, 13, 0.55);
+  color: var(--ink-2);
+  font-weight: 600;
+  z-index: 500;
+  pointer-events: none;
+}
+
+.radar-time {
+  display: flex;
+  flex-direction: column;
+  min-width: 84px;
+  flex: none;
+}
+
+.rt-clock {
+  font-size: 19px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.15;
+}
+
+.rt-tag {
+  font-size: 11.5px;
+  color: var(--ink-3);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.rt-tag.future {
+  color: var(--warning);
+  font-weight: 700;
+}
+
+.radar-strip {
+  position: relative;
+  flex: 1;
+  display: flex;
+  gap: 2px;
+  align-items: center;
+  height: 34px;
+  cursor: pointer;
+  touch-action: none;
+}
+
+.radar-strip .seg {
+  flex: 1;
+  height: 8px;
+  border-radius: 3px;
+  background: var(--surface-3);
+}
+
+.radar-strip .seg.future {
+  background: rgba(250, 178, 25, 0.45);
+}
+
+.radar-strip .seg.active {
+  background: var(--ink);
+  height: 16px;
+}
+
+.radar-strip .seg.future.active {
+  background: var(--warning);
+}
+
+.radar-strip .now-tick {
+  position: absolute;
+  top: -4px;
+  bottom: -2px;
+  width: 1px;
+  background: var(--ink-2);
+  pointer-events: none;
+}
+
+.radar-strip .now-tick i {
+  position: absolute;
+  top: -11px;
+  left: -14px;
+  font-style: normal;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  color: var(--ink-2);
+}
+
+.radar-strip-labels {
+  display: flex;
+  justify-content: space-between;
+  padding: 2px 16px 0;
+  background: var(--surface);
+  font-size: 11.5px;
+  color: var(--ink-3);
+}
+
+.radar-strip-labels .fut {
+  color: var(--warning);
+}
+
+/* ---------- scorecard ---------- */
+.weight-toggle {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 12.5px;
+  color: var(--ink-2);
+  cursor: pointer;
+}
+
+.weight-toggle input {
+  accent-color: var(--accent);
+}
+
+.score-empty {
+  color: var(--ink-3);
+  font-size: 13.5px;
+  line-height: 1.55;
+  max-width: 640px;
+}
+
+.score-rows {
+  display: flex;
+  flex-direction: column;
+}
+
+.score-row {
+  display: grid;
+  grid-template-columns: 28px 12px 92px 1fr 110px 72px 36px;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 0;
+  font-size: 13.5px;
+}
+
+.score-row .rank {
+  color: var(--ink-3);
+  font-weight: 700;
+}
+
+.score-row .swatch {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+}
+
+.score-row .name {
+  font-weight: 650;
+}
+
+.score-row .name small {
+  display: block;
+  font-weight: 400;
+  font-size: 10.5px;
+  color: var(--ink-3);
+  white-space: nowrap;
+}
+
+.score-row .mae-bar {
+  position: relative;
+  height: 8px;
+  border-radius: 4px;
+  background: var(--surface-2);
+  overflow: hidden;
+}
+
+.score-row .mae-bar .bar {
+  position: absolute;
+  top: 1px;
+  left: 0;
+  height: 6px;
+  border-radius: 3px;
+}
+
+.score-row .mae {
+  font-weight: 650;
+  text-align: right;
+}
+
+.score-row .mae small {
+  font-weight: 400;
+  color: var(--ink-3);
+}
+
+.score-row .rain-acc {
+  color: var(--ink-2);
+  text-align: right;
+  font-size: 12.5px;
+}
+
+.score-row .days {
+  color: var(--ink-3);
+  text-align: right;
+  font-size: 12px;
+}
+
+.score-nodata {
+  grid-column: 4 / -1;
+  color: var(--ink-3);
+  font-size: 12.5px;
+}
+
+/* ---------- mobile polish ---------- */
+@media (max-width: 640px) {
+  .container {
+    padding: 14px 10px 32px;
+  }
+
+  .card {
+    padding: 14px;
+  }
+
+  .current-temp,
+  .current-icon {
+    font-size: 46px;
+  }
+
+  .brand {
+    order: 0;
+  }
+
+  .segmented {
+    order: 1;
+    margin-left: auto;
+  }
+
+  .search {
+    order: 2;
+    flex-basis: 100%;
+    max-width: none;
+  }
+
+  .toolbar {
+    flex-basis: 100%;
+    justify-content: flex-end;
+  }
+
+  .score-row {
+    grid-template-columns: 22px 10px 64px 1fr 84px;
+  }
+
+  .score-row .rain-acc,
+  .score-row .days {
+    display: none;
+  }
+
+  .radar-map {
+    min-height: 340px;
+  }
+
+  .radar-controls {
+    gap: 10px;
+    padding: 10px 12px;
+  }
 }
 
 /* custom scrollbars, flat */

@@ -32,6 +32,6 @@ const CODES = {
 
 export function describe(code) {
   const entry = CODES[code]
-  if (!entry) return { label: '—', icon: '·' }
+  if (!entry) return { label: 'Unknown', icon: '·' }
   return { label: entry[0], icon: entry[1] }
 }

@@ -1,5 +1,6 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react'
-import { fetchForecast } from './api/openMeteo.js'
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { fetchForecast, MODELS } from './api/openMeteo.js'
+import { weightsFromScores } from './lib/aggregate.js'
 import * as storage from './lib/storage.js'
 import SearchBar from './components/SearchBar.jsx'
 import CurrentCard from './components/CurrentCard.jsx'
@@ -7,6 +8,23 @@ import ModelPanel from './components/ModelPanel.jsx'
 import HourlyChart from './components/HourlyChart.jsx'
 import DailySection from './components/DailySection.jsx'
 import RadarMap from './components/RadarMap.jsx'
+import Scorecard from './components/Scorecard.jsx'
+
+const AUTO_OPTIONS = [
+  { value: 0, label: 'Auto: off' },
+  { value: 5, label: 'Auto: 5 min' },
+  { value: 10, label: 'Auto: 10 min' },
+  { value: 30, label: 'Auto: 30 min' },
+]
+
+function agoLabel(ts) {
+  if (!ts) return ''
+  const mins = Math.floor((Date.now() - ts) / 60000)
+  if (mins < 1) return 'updated just now'
+  if (mins === 1) return 'updated 1 min ago'
+  if (mins < 60) return `updated ${mins} min ago`
+  return `updated ${Math.floor(mins / 60)}h ${mins % 60}m ago`
+}
 
 export default function App() {
   const [units, setUnits] = useState(storage.loadUnits)
@@ -16,20 +34,35 @@ export default function App() {
   const [status, setStatus] = useState('idle') // idle | loading | ready | error
   const [errorMsg, setErrorMsg] = useState('')
   const [tab, setTab] = useState('forecast')
+  const [hourlyWindow, setHourlyWindow] = useState(() => storage.loadSetting('window', 24))
+  const [autoRefresh, setAutoRefresh] = useState(() => storage.loadSetting('autorefresh', 10))
+  const [weighting, setWeighting] = useState(() => storage.loadSetting('weighting', true))
+  const [scores, setScores] = useState(null)
+  const [updatedAt, setUpdatedAt] = useState(null)
+  const [, setTick] = useState(0) // re-render for the "updated x ago" label
+  const locationRef = useRef(null)
 
-  const select = useCallback(async (loc) => {
+  const select = useCallback(async (loc, isRefresh = false) => {
+    locationRef.current = loc
     setLocation(loc)
-    setStatus('loading')
+    if (!isRefresh) setStatus('loading')
     try {
       const d = await fetchForecast(loc.lat, loc.lon)
       setData(d)
       setStatus('ready')
+      setUpdatedAt(Date.now())
       storage.logSnapshot(loc, d)
     } catch (e) {
-      setErrorMsg(e.message)
-      setStatus('error')
+      if (!isRefresh) {
+        setErrorMsg(e.message)
+        setStatus('error')
+      }
     }
   }, [])
+
+  const refresh = useCallback(() => {
+    if (locationRef.current) select(locationRef.current, true)
+  }, [select])
 
   const geolocate = useCallback(() => {
     if (!navigator.geolocation) return
@@ -42,9 +75,7 @@ export default function App() {
           lat: pos.coords.latitude,
           lon: pos.coords.longitude,
         }),
-      () => {
-        setStatus((s) => (s === 'idle' ? 'idle' : s))
-      },
+      () => {},
       { timeout: 8000 },
     )
   }, [select])
@@ -55,9 +86,40 @@ export default function App() {
     else geolocate()
   }, [select, geolocate])
 
+  // model accuracy scores, produced by the scheduled GitHub Action
+  useEffect(() => {
+    fetch(`${import.meta.env.BASE_URL}data/scores.json`)
+      .then((r) => (r.ok ? r.json() : null))
+      .then(setScores)
+      .catch(() => setScores(null))
+  }, [])
+
+  // auto refresh + "updated x ago" ticker
+  useEffect(() => {
+    const tick = setInterval(() => setTick((t) => t + 1), 30000)
+    return () => clearInterval(tick)
+  }, [])
+  useEffect(() => {
+    if (!autoRefresh) return
+    const t = setInterval(refresh, autoRefresh * 60000)
+    return () => clearInterval(t)
+  }, [autoRefresh, refresh])
+
   const changeUnits = (u) => {
     setUnits(u)
     storage.saveUnits(u)
+  }
+  const changeWindow = (w) => {
+    setHourlyWindow(w)
+    storage.saveSetting('window', w)
+  }
+  const changeAutoRefresh = (v) => {
+    setAutoRefresh(v)
+    storage.saveSetting('autorefresh', v)
+  }
+  const toggleWeighting = (on) => {
+    setWeighting(on)
+    storage.saveSetting('weighting', on)
   }
 
   const isSaved = useMemo(
@@ -91,13 +153,19 @@ export default function App() {
       else break
     }
     return idx
-  }, [data])
+  }, [data, updatedAt])
+
+  // accuracy weights kick in once every model has 14+ verified days
+  const weights = useMemo(() => {
+    if (!weighting) return null
+    return weightsFromScores(scores, MODELS.map((m) => m.id))
+  }, [scores, weighting])
 
   return (
     <div className="container">
       <div className="header">
         <div className="brand">
-          Weather Aggregator
+          OTTO's Weather
           <small>7 independent forecast models · mean &amp; spread</small>
         </div>
         <SearchBar onPick={select} onGeolocate={geolocate} />
@@ -111,21 +179,21 @@ export default function App() {
         </div>
       </div>
 
-      {saved.length > 0 && (
-        <div className="chips">
-          {saved.map((s) => (
-            <span
-              className={`chip ${location && storage.locationKey(s) === storage.locationKey(location) ? 'active' : ''}`}
-              key={storage.locationKey(s)}
-            >
-              <button onClick={() => select(s)}>{s.name}</button>
-              <button className="x" onClick={() => removeSaved(s)} title="Remove">
-                ✕
-              </button>
-            </span>
-          ))}
-        </div>
-      )}
+      <div className="fav-row">
+        <span className="fav-label">★ Favorites</span>
+        {saved.length === 0 && <span className="fav-hint">tap the ☆ next to a location's name to save it here</span>}
+        {saved.map((s) => (
+          <span
+            className={`chip ${location && storage.locationKey(s) === storage.locationKey(location) ? 'active' : ''}`}
+            key={storage.locationKey(s)}
+          >
+            <button onClick={() => select(s)}>{s.name}</button>
+            <button className="x" onClick={() => removeSaved(s)} title="Remove">
+              ✕
+            </button>
+          </span>
+        ))}
+      </div>
 
       {location && status !== 'idle' && (
         <div className="tabs">
@@ -135,6 +203,19 @@ export default function App() {
           <button className={tab === 'radar' ? 'active' : ''} onClick={() => setTab('radar')}>
             Radar
           </button>
+          <span className="toolbar">
+            <span className="updated">{agoLabel(updatedAt)}</span>
+            <button className="refresh-btn" onClick={refresh} title="Refresh now" disabled={status === 'loading'}>
+              ↻
+            </button>
+            <select className="auto-select" value={autoRefresh} onChange={(e) => changeAutoRefresh(Number(e.target.value))}>
+              {AUTO_OPTIONS.map((o) => (
+                <option key={o.value} value={o.value}>
+                  {o.label}
+                </option>
+              ))}
+            </select>
+          </span>
         </div>
       )}
 
@@ -150,15 +231,40 @@ export default function App() {
             <CurrentCard
               data={data}
               units={units}
+              weights={weights}
               location={location}
               nowIndex={nowIndex}
               isSaved={isSaved}
               onToggleSave={toggleSave}
             />
-            <ModelPanel data={data} units={units} nowIndex={nowIndex} />
+            <ModelPanel data={data} units={units} weights={weights} nowIndex={nowIndex} />
           </div>
-          <HourlyChart data={data} units={units} nowIndex={nowIndex} />
-          <DailySection data={data} units={units} />
+          <HourlyChart
+            data={data}
+            units={units}
+            weights={weights}
+            startIndex={nowIndex}
+            hours={hourlyWindow}
+            nowIndex={nowIndex}
+            title={`Next ${hourlyWindow} hours: temperature per model`}
+            headerExtra={
+              <div className="segmented small">
+                {[12, 24, 48].map((w) => (
+                  <button key={w} className={hourlyWindow === w ? 'active' : ''} onClick={() => changeWindow(w)}>
+                    {w}h
+                  </button>
+                ))}
+              </div>
+            }
+          />
+          <DailySection data={data} units={units} weights={weights} nowIndex={nowIndex} />
+          <Scorecard
+            scores={scores}
+            units={units}
+            weighting={weighting}
+            onToggleWeighting={toggleWeighting}
+            weightsActive={!!weights}
+          />
         </>
       )}
 
