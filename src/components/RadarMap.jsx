@@ -70,9 +70,12 @@ export default function RadarMap({ location }) {
     const frame = frames[idx]
     const cache = layersRef.current
     if (!cache.has(frame.time)) {
+      // RainViewer serves radar only up to tile zoom 7 (higher zooms return a
+      // "Zoom Level Not Supported" placeholder). Request 512px tiles one zoom
+      // back and let Leaflet upscale past the native resolution.
       const layer = L.tileLayer(
-        `${hostRef.current}${frame.path}/256/{z}/{x}/{y}/${COLOR_SCHEME}/1_1.png`,
-        { opacity: 0, tileSize: 256, zIndex: 10 },
+        `${hostRef.current}${frame.path}/512/{z}/{x}/{y}/${COLOR_SCHEME}/1_1.png`,
+        { opacity: 0, tileSize: 512, zoomOffset: -1, maxNativeZoom: 8, maxZoom: 12, zIndex: 10 },
       )
       layer.addTo(map)
       cache.set(frame.time, layer)
