@@ -1,9 +1,11 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react'
 import { MODELS } from '../api/openMeteo.js'
-import { aggregateSeries, agreementAt } from '../lib/aggregate.js'
+import { aggregateSeries, agreementAt, consensusCode } from '../lib/aggregate.js'
+import { describe } from '../lib/weatherCodes.js'
 import { cToF, precip } from '../lib/convert.js'
 
-const M = { left: 46, right: 14, top: 14 }
+// top margin holds the consensus sky-condition icon row
+const M = { left: 46, right: 14, top: 40 }
 const TEMP_H = 220
 const GAP = 10
 const PRECIP_H = 64
@@ -72,6 +74,13 @@ export default function HourlyChart({ data, units, weights, bias, startIndex, ho
     }
     const perModelTemp = slice('temperature_2m')
     const perModelPrecip = slice('precipitation')
+    const perModelCode = slice('weather_code')
+    const codeArrays = Object.values(perModelCode).filter(Array.isArray)
+    const conds = []
+    for (let i = 0; i < n; i++) {
+      const code = consensusCode(codeArrays.map((a) => a[i]))
+      conds.push(code == null ? null : describe(code))
+    }
     return {
       start,
       n,
@@ -80,6 +89,7 @@ export default function HourlyChart({ data, units, weights, bias, startIndex, ho
       agg: aggregateSeries(perModelTemp, weights, bias),
       perModelPrecip,
       precipAgg: aggregateSeries(perModelPrecip),
+      conds,
     }
   }, [data, startIndex, hours, weights, bias])
 
@@ -244,6 +254,21 @@ export default function HourlyChart({ data, units, weights, bias, startIndex, ho
             return els.length ? <g key={iso}>{els}</g> : null
           })}
 
+          {/* consensus sky-condition icons */}
+          {view.times.map((iso, i) => {
+            const h = Number(iso.slice(11, 13))
+            const isCadence = h % labelEvery === 0
+            // also show one on the first hour unless a cadence icon is right next to it
+            if (!(isCadence || (i === 0 && h % labelEvery > 1))) return null
+            const c = view.conds[i]
+            if (!c) return null
+            return (
+              <text key={`ic${iso}`} x={x(i)} y={24} textAnchor="middle" fontSize="15">
+                {c.icon}
+              </text>
+            )
+          })}
+
           <path d={bandPath} fill="rgba(255,255,255,0.07)" />
 
           {MODELS.map((m) => (
@@ -314,6 +339,11 @@ export default function HourlyChart({ data, units, weights, bias, startIndex, ho
             <div className="tt-time">
               {weekday(view.times[sel])} {hourLabel(view.times[sel])}
             </div>
+            {view.conds[sel] && (
+              <div className="tt-cond">
+                {view.conds[sel].icon} {view.conds[sel].label}
+              </div>
+            )}
             {readoutRows.map((m) => (
               <div className="tt-row" key={m.id}>
                 <span className="l">
@@ -345,6 +375,11 @@ export default function HourlyChart({ data, units, weights, bias, startIndex, ho
           <span className="pr-time">
             {weekday(view.times[sel])} {hourLabel(view.times[sel])}
           </span>
+          {view.conds[sel] && (
+            <span className="pr-cond">
+              {view.conds[sel].icon} {view.conds[sel].label}
+            </span>
+          )}
           <span className="pr-mean">
             {Number.isFinite(view.agg.mean[sel]) ? Math.round(u(view.agg.mean[sel])) : '–'}°
             <small>

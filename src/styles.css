@@ -450,6 +450,10 @@ input {
 
 .chart-tooltip .tt-time {
   font-weight: 700;
+}
+
+.chart-tooltip .tt-cond {
+  color: var(--ink-2);
   margin-bottom: 4px;
 }
 
@@ -733,6 +737,11 @@ input {
 
 .pin-readout .pr-time {
   font-weight: 700;
+}
+
+.pin-readout .pr-cond {
+  color: var(--ink-2);
+  font-size: 13.5px;
 }
 
 .pin-readout .pr-mean {
