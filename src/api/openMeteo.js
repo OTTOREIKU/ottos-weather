@@ -1,5 +1,9 @@
 // Open-Meteo API: forecast (multi-model), geocoding. No key required.
+// Responses are TTL-cached (lib/cache.js); pass force=true to bypass.
 import { bumpCall } from '../lib/storage.js'
+import { cached } from '../lib/cache.js'
+
+const llKey = (lat, lon) => `${lat.toFixed(3)},${lon.toFixed(3)}`
 // Colors are the dark-mode categorical palette slots, fixed order per model.
 export const MODELS = [
   { id: 'ecmwf_ifs025', label: 'ECMWF', agency: 'ECMWF · Europe', color: '#3987e5' },
@@ -49,29 +53,36 @@ function groupByModel(block, vars) {
   return out
 }
 
-export async function fetchForecast(lat, lon) {
-  const params = new URLSearchParams({
-    latitude: lat.toFixed(4),
-    longitude: lon.toFixed(4),
-    hourly: HOURLY_VARS.join(','),
-    daily: DAILY_VARS.join(','),
-    models: MODELS.map((m) => m.id).join(','),
-    timezone: 'auto',
-    forecast_days: '8',
-  })
-  bumpCall('openmeteo')
-  const res = await fetch(`https://api.open-meteo.com/v1/forecast?${params}`)
-  if (!res.ok) throw new Error(`Forecast request failed (${res.status})`)
-  const json = await res.json()
-  if (json.error) throw new Error(json.reason || 'Forecast request failed')
-  return {
-    timezone: json.timezone,
-    utcOffsetSeconds: json.utc_offset_seconds,
-    hourlyTime: json.hourly.time,
-    hourly: groupByModel(json.hourly, HOURLY_VARS),
-    dailyTime: json.daily.time,
-    daily: groupByModel(json.daily, DAILY_VARS),
-  }
+export function fetchForecast(lat, lon, force = false) {
+  return cached(
+    `fc:${llKey(lat, lon)}`,
+    8 * 60000,
+    async () => {
+      const params = new URLSearchParams({
+        latitude: lat.toFixed(4),
+        longitude: lon.toFixed(4),
+        hourly: HOURLY_VARS.join(','),
+        daily: DAILY_VARS.join(','),
+        models: MODELS.map((m) => m.id).join(','),
+        timezone: 'auto',
+        forecast_days: '8',
+      })
+      bumpCall('openmeteo')
+      const res = await fetch(`https://api.open-meteo.com/v1/forecast?${params}`)
+      if (!res.ok) throw new Error(`Forecast request failed (${res.status})`)
+      const json = await res.json()
+      if (json.error) throw new Error(json.reason || 'Forecast request failed')
+      return {
+        timezone: json.timezone,
+        utcOffsetSeconds: json.utc_offset_seconds,
+        hourlyTime: json.hourly.time,
+        hourly: groupByModel(json.hourly, HOURLY_VARS),
+        dailyTime: json.daily.time,
+        daily: groupByModel(json.daily, DAILY_VARS),
+      }
+    },
+    force,
+  )
 }
 
 const US_STATES = {
@@ -111,16 +122,19 @@ function parseQuery(query) {
 
 export async function geocode(query) {
   const { name, region } = parseQuery(query)
-  const params = new URLSearchParams({
-    name,
-    count: region ? '20' : '10',
-    language: 'en',
-    format: 'json',
+  // place lookups are deterministic; cache them for a week
+  const json = await cached(`geo:${name.toLowerCase()}|${region || ''}`.trim(), 7 * 86400e3, async () => {
+    const params = new URLSearchParams({
+      name,
+      count: region ? '20' : '10',
+      language: 'en',
+      format: 'json',
+    })
+    bumpCall('openmeteo')
+    const res = await fetch(`https://geocoding-api.open-meteo.com/v1/search?${params}`)
+    if (!res.ok) throw new Error(`Geocoding failed (${res.status})`)
+    return res.json()
   })
-  bumpCall('openmeteo')
-  const res = await fetch(`https://geocoding-api.open-meteo.com/v1/search?${params}`)
-  if (!res.ok) throw new Error(`Geocoding failed (${res.status})`)
-  const json = await res.json()
   let results = (json.results || []).map((r) => ({
     name: r.name,
     admin1: r.admin1 || '',
@@ -145,29 +159,41 @@ export async function geocode(query) {
 
 // 15-minute precipitation for the next hours (best-match model). Used for the
 // "rain starting soon" readout; unavailable regions return nulls.
-export async function fetchMinutely(lat, lon) {
-  const params = new URLSearchParams({
-    latitude: lat.toFixed(4),
-    longitude: lon.toFixed(4),
-    minutely_15: 'precipitation',
-    // 2 days so the 2.5h horizon survives late-evening checks near local midnight
-    forecast_days: '2',
-    timezone: 'auto',
-  })
-  bumpCall('openmeteo')
-  const res = await fetch(`https://api.open-meteo.com/v1/forecast?${params}`)
-  if (!res.ok) throw new Error(`Minutely request failed (${res.status})`)
-  const json = await res.json()
-  return {
-    utcOffsetSeconds: json.utc_offset_seconds,
-    time: json.minutely_15?.time || [],
-    precipitation: json.minutely_15?.precipitation || [],
-  }
+export function fetchMinutely(lat, lon, force = false) {
+  return cached(
+    `min:${llKey(lat, lon)}`,
+    8 * 60000,
+    async () => {
+      const params = new URLSearchParams({
+        latitude: lat.toFixed(4),
+        longitude: lon.toFixed(4),
+        minutely_15: 'precipitation',
+        // 2 days so the 2.5h horizon survives late-evening checks near local midnight
+        forecast_days: '2',
+        timezone: 'auto',
+      })
+      bumpCall('openmeteo')
+      const res = await fetch(`https://api.open-meteo.com/v1/forecast?${params}`)
+      if (!res.ok) throw new Error(`Minutely request failed (${res.status})`)
+      const json = await res.json()
+      return {
+        utcOffsetSeconds: json.utc_offset_seconds,
+        time: json.minutely_15?.time || [],
+        precipitation: json.minutely_15?.precipitation || [],
+      }
+    },
+    force,
+  )
 }
 
 // Air quality, UV index, and visibility for the details tiles. Both endpoints
 // are keyless; failures degrade to empty tiles rather than blocking anything.
-export async function fetchDetails(lat, lon) {
+export function fetchDetails(lat, lon, force = false) {
+  // AQI and UV move slowly; half an hour of caching is safe
+  return cached(`det:${llKey(lat, lon)}`, 30 * 60000, () => fetchDetailsRaw(lat, lon), force)
+}
+
+async function fetchDetailsRaw(lat, lon) {
   const out = { aqi: null, uvNow: null, uvMax: null, visibility: null }
   const ll = { latitude: lat.toFixed(4), longitude: lon.toFixed(4), timezone: 'auto' }
   bumpCall('openmeteo', 2)
@@ -205,13 +231,20 @@ const SEVERITY_RANK = { Extreme: 0, Severe: 1, Moderate: 2, Minor: 3, Unknown: 4
 
 // Active NWS alerts for a point (official US National Weather Service, no key).
 // Non-US locations get an empty list.
-export async function fetchAlerts(lat, lon) {
+export async function fetchAlerts(lat, lon, force = false) {
   try {
-    const res = await fetch(`https://api.weather.gov/alerts/active?point=${lat.toFixed(4)},${lon.toFixed(4)}`, {
-      headers: { Accept: 'application/geo+json' },
-    })
-    if (!res.ok) return []
-    const json = await res.json()
+    const json = await cached(
+      `alerts:${llKey(lat, lon)}`,
+      5 * 60000,
+      async () => {
+        const res = await fetch(`https://api.weather.gov/alerts/active?point=${lat.toFixed(4)},${lon.toFixed(4)}`, {
+          headers: { Accept: 'application/geo+json' },
+        })
+        if (!res.ok) return { features: [] }
+        return res.json()
+      },
+      force,
+    )
     return (json.features || [])
       .map((f) => ({
         id: f.properties.id || f.id,
@@ -230,10 +263,13 @@ export async function fetchAlerts(lat, lon) {
 }
 
 // RainViewer radar frames: ~2h of past frames plus a short nowcast. No key.
+// Short cache so tab switches don't refetch the frame list.
 export async function fetchRadarFrames() {
-  const res = await fetch('https://api.rainviewer.com/public/weather-maps.json')
-  if (!res.ok) throw new Error(`Radar frames failed (${res.status})`)
-  const json = await res.json()
+  const json = await cached('radar:frames', 2 * 60000, async () => {
+    const res = await fetch('https://api.rainviewer.com/public/weather-maps.json')
+    if (!res.ok) throw new Error(`Radar frames failed (${res.status})`)
+    return res.json()
+  })
   const frames = [
     ...(json.radar?.past || []).map((f) => ({ ...f, nowcast: false })),
     ...(json.radar?.nowcast || []).map((f) => ({ ...f, nowcast: true })),

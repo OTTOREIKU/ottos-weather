@@ -1,4 +1,4 @@
-import React from 'react'
+import React, { useState } from 'react'
 import { kstats, valuesAt } from '../lib/aggregate.js'
 import { moonPhase } from '../lib/astro.js'
 import { temp, wind, pressure } from '../lib/convert.js'
@@ -68,6 +68,8 @@ function clock12(iso) {
 const isoMinutes = (iso) => Number(iso.slice(11, 13)) * 60 + Number(iso.slice(14, 16))
 
 export default function DetailsSection({ data, details, units, nowIndex }) {
+  // collapsed by default on phones, matching the model breakdown
+  const [open, setOpen] = useState(() => typeof window === 'undefined' || !window.innerWidth || window.innerWidth > 820)
   const dew = kstats(valuesAt(data.hourly.dew_point_2m, nowIndex))
   const windSt = kstats(valuesAt(data.hourly.wind_speed_10m, nowIndex))
   const cloud = kstats(valuesAt(data.hourly.cloud_cover, nowIndex))
@@ -100,8 +102,12 @@ export default function DetailsSection({ data, details, units, nowIndex }) {
 
   return (
     <div className="card chart-card">
-      <div className="section-title">Details</div>
-      <div className="details-grid">
+      <button className="panel-toggle" onClick={() => setOpen((o) => !o)}>
+        <span className="section-title" style={{ margin: 0 }}>Details</span>
+        <span className="chev">{open ? '▾' : '▸'}</span>
+      </button>
+      {open && (
+      <div className="details-grid" style={{ marginTop: 12 }}>
         <Tile label="🌬 Wind">
           <div className="tile-v">
             {w.value}<small> {w.unit}</small>
@@ -168,6 +174,7 @@ export default function DetailsSection({ data, details, units, nowIndex }) {
           <div className="moon-emoji">{moon.emoji}</div>
         </Tile>
       </div>
+      )}
     </div>
   )
 }

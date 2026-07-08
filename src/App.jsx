@@ -87,26 +87,26 @@ export default function App() {
   const [, setTick] = useState(0) // re-render for the "updated x ago" label
   const locationRef = useRef(null)
 
-  const select = useCallback(async (loc, isRefresh = false) => {
+  const select = useCallback(async (loc, isRefresh = false, force = false) => {
     locationRef.current = loc
     setLocation(loc)
     if (!isRefresh) setStatus('loading')
     // side data is best-effort and never blocks the forecast
-    fetchAlerts(loc.lat, loc.lon).then((a) => locationRef.current === loc && setAlerts(a))
-    fetchMinutely(loc.lat, loc.lon)
+    fetchAlerts(loc.lat, loc.lon, force).then((a) => locationRef.current === loc && setAlerts(a))
+    fetchMinutely(loc.lat, loc.lon, force)
       .then((m) => locationRef.current === loc && setRainSoon(analyzeRainSoon(m)))
       .catch(() => setRainSoon(null))
-    fetchDetails(loc.lat, loc.lon)
+    fetchDetails(loc.lat, loc.lon, force)
       .then((d) => locationRef.current === loc && setDetails(d))
       .catch(() => setDetails(null))
     try {
-      const d = await fetchForecast(loc.lat, loc.lon)
+      const d = await fetchForecast(loc.lat, loc.lon, force)
       setData(d)
       setStatus('ready')
       setUpdatedAt(Date.now())
       storage.logSnapshot(loc, d)
       // enrich with the extra sources once they respond
-      fetchExtraSources(d, loc, storage.loadSources())
+      fetchExtraSources(d, loc, storage.loadSources(), force)
         .then(({ merged, status }) => {
           if (locationRef.current !== loc) return
           setSourceStatus(status)
@@ -121,8 +121,12 @@ export default function App() {
     }
   }, [])
 
+  // manual refresh bypasses the cache; auto refresh lets TTLs decide
   const refresh = useCallback(() => {
-    if (locationRef.current) select(locationRef.current, true)
+    if (locationRef.current) select(locationRef.current, true, true)
+  }, [select])
+  const autoTick = useCallback(() => {
+    if (locationRef.current) select(locationRef.current, true, false)
   }, [select])
 
   const geolocate = useCallback(() => {
@@ -218,9 +222,9 @@ export default function App() {
   }, [])
   useEffect(() => {
     if (!autoRefresh) return
-    const t = setInterval(refresh, autoRefresh * 60000)
+    const t = setInterval(autoTick, autoRefresh * 60000)
     return () => clearInterval(t)
-  }, [autoRefresh, refresh])
+  }, [autoRefresh, autoTick])
 
   const changeUnits = (u) => {
     setUnits(u)

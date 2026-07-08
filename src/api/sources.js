@@ -7,6 +7,9 @@
 // Client-side call budgets keep the keyed services safely under their free tiers.
 import { MODELS } from './openMeteo.js'
 import * as storage from '../lib/storage.js'
+import { cached } from '../lib/cache.js'
+
+const llKey = (loc) => `${loc.lat.toFixed(3)},${loc.lon.toFixed(3)}`
 
 export const EXTRA_SOURCES = [
   {
@@ -124,11 +127,23 @@ function computeDaily(core, hourly) {
   return out
 }
 
-async function fetchNWS(core, loc) {
-  const pt = await (await fetch(`https://api.weather.gov/points/${loc.lat.toFixed(4)},${loc.lon.toFixed(4)}`)).json()
-  const url = pt?.properties?.forecastHourly
+async function fetchNWS(core, loc, force) {
+  // the point → grid-office mapping never changes; cache it for a day
+  const url = await cached(`nwspt:${llKey(loc)}`, 24 * 3600e3, async () => {
+    storage.bumpCall('nws')
+    const pt = await (await fetch(`https://api.weather.gov/points/${loc.lat.toFixed(4)},${loc.lon.toFixed(4)}`)).json()
+    return pt?.properties?.forecastHourly || null
+  })
   if (!url) return null
-  const fc = await (await fetch(`${url}?units=si`)).json()
+  const fc = await cached(
+    `nwsfc:${llKey(loc)}`,
+    15 * 60000,
+    async () => {
+      storage.bumpCall('nws')
+      return (await fetch(`${url}?units=si`)).json()
+    },
+    force,
+  )
   const periods = fc?.properties?.periods
   if (!periods?.length) return null
   const n = core.hourlyTime.length
@@ -169,9 +184,18 @@ function interpolate(arr, maxGap = 3) {
   return arr
 }
 
-async function fetchOpenWeather(core, loc, key) {
-  const params = new URLSearchParams({ lat: loc.lat.toFixed(4), lon: loc.lon.toFixed(4), units: 'metric', appid: key })
-  const j = await (await fetch(`https://api.openweathermap.org/data/2.5/forecast?${params}`)).json()
+async function fetchOpenWeather(core, loc, key, force) {
+  const j = await cached(
+    `owm:${llKey(loc)}`,
+    15 * 60000,
+    async () => {
+      if (!storage.underCap('openweather', 900)) throw new Error('daily budget reached, paused')
+      storage.bumpCall('openweather')
+      const params = new URLSearchParams({ lat: loc.lat.toFixed(4), lon: loc.lon.toFixed(4), units: 'metric', appid: key })
+      return (await fetch(`https://api.openweathermap.org/data/2.5/forecast?${params}`)).json()
+    },
+    force,
+  )
   if (String(j.cod) !== '200' || !j.list?.length) throw new Error(j.message || 'OpenWeather error')
   const n = core.hourlyTime.length
   const idx = hourIndex(core.hourlyTime)
@@ -214,12 +238,21 @@ async function fetchOpenWeather(core, loc, key) {
   return { hourly, daily: computeDaily(core, hourly) }
 }
 
-async function fetchPirate(core, loc, key) {
-  const j = await (
-    await fetch(
-      `https://api.pirateweather.net/forecast/${key}/${loc.lat.toFixed(4)},${loc.lon.toFixed(4)}?units=si&extend=hourly&exclude=minutely,daily,alerts`,
-    )
-  ).json()
+async function fetchPirate(core, loc, key, force) {
+  const j = await cached(
+    `pirate:${llKey(loc)}`,
+    15 * 60000,
+    async () => {
+      if (!storage.underCap('pirate', 300, 9000)) throw new Error('budget reached, paused')
+      storage.bumpCall('pirate')
+      return (
+        await fetch(
+          `https://api.pirateweather.net/forecast/${key}/${loc.lat.toFixed(4)},${loc.lon.toFixed(4)}?units=si&extend=hourly&exclude=minutely,daily,alerts`,
+        )
+      ).json()
+    },
+    force,
+  )
   const items = j?.hourly?.data
   if (!items?.length) throw new Error(j?.message || 'PirateWeather error')
   const n = core.hourlyTime.length
@@ -253,7 +286,7 @@ async function fetchPirate(core, loc, key) {
 // Fetch every enabled extra source and merge it into a copy of the core
 // forecast. Returns { merged, status } where merged is null when nothing was
 // added and status carries a per-source result string for the sources panel.
-export async function fetchExtraSources(core, loc, settings) {
+export async function fetchExtraSources(core, loc, settings, force = false) {
   const jobs = []
   const status = {}
   const wrap = (id, promise) =>
@@ -273,24 +306,13 @@ export async function fetchExtraSources(core, loc, settings) {
       })
 
   if (settings.nws?.on) {
-    storage.bumpCall('nws')
-    jobs.push(wrap('nws', fetchNWS(core, loc)))
+    jobs.push(wrap('nws', fetchNWS(core, loc, force)))
   }
   if (settings.openweather?.on && settings.openweather.key) {
-    if (storage.underCap('openweather', 900)) {
-      storage.bumpCall('openweather')
-      jobs.push(wrap('openweather', fetchOpenWeather(core, loc, settings.openweather.key.trim())))
-    } else {
-      status.openweather = 'daily budget reached, paused'
-    }
+    jobs.push(wrap('openweather', fetchOpenWeather(core, loc, settings.openweather.key.trim(), force)))
   }
   if (settings.pirate?.on && settings.pirate.key) {
-    if (storage.underCap('pirate', 300, 9000)) {
-      storage.bumpCall('pirate')
-      jobs.push(wrap('pirate', fetchPirate(core, loc, settings.pirate.key.trim())))
-    } else {
-      status.pirate = 'budget reached, paused'
-    }
+    jobs.push(wrap('pirate', fetchPirate(core, loc, settings.pirate.key.trim(), force)))
   }
   if (!jobs.length) return { merged: null, status }
 
