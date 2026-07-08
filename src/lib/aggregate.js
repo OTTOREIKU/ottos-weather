@@ -67,18 +67,48 @@ export function valuesAt(perModel, index) {
   return out
 }
 
-// Most frequent weather code; ties break toward the more severe (higher) code.
+// WMO code → condition family, ordered by severity
+function family(code) {
+  if (code <= 1) return 0 // clear
+  if (code <= 3) return 1 // clouds
+  if (code <= 48) return 2 // fog
+  if (code <= 57) return 3 // drizzle
+  if (code <= 67) return 4 // rain
+  if (code <= 77) return 5 // snow
+  if (code <= 82) return 4 // rain showers
+  if (code <= 86) return 5 // snow showers
+  return 6 // thunderstorm
+}
+
+// Consensus weather code, family-first: the condition type is decided by
+// which family most models are in (ties toward severe, storms matter), then
+// the code within that family by count with ties toward the LESS severe code,
+// so one or two outlier models can't upgrade "thunderstorm" to "hail".
 export function consensusCode(values) {
-  const counts = new Map()
-  for (const v of values) {
-    if (Number.isFinite(v)) counts.set(v, (counts.get(v) || 0) + 1)
+  const codes = values.filter(Number.isFinite)
+  if (!codes.length) return null
+  const famCount = new Map()
+  for (const c of codes) {
+    const f = family(c)
+    famCount.set(f, (famCount.get(f) || 0) + 1)
   }
-  if (!counts.size) return null
+  let bestFam = null
+  let famN = 0
+  for (const [f, n] of famCount) {
+    if (n > famN || (n === famN && f > bestFam)) {
+      bestFam = f
+      famN = n
+    }
+  }
+  const counts = new Map()
+  for (const c of codes) {
+    if (family(c) === bestFam) counts.set(c, (counts.get(c) || 0) + 1)
+  }
   let best = null
   let bestN = 0
-  for (const [code, n] of counts) {
-    if (n > bestN || (n === bestN && code > best)) {
-      best = code
+  for (const [c, n] of counts) {
+    if (n > bestN || (n === bestN && (best === null || c < best))) {
+      best = c
       bestN = n
     }
   }
