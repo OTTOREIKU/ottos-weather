@@ -133,5 +133,155 @@
         "pr": 0.5
       }
     }
+  },
+  "35.78,-78.64|2026-07-09|L1": {
+    "name": "Raleigh",
+    "lat": 35.7796,
+    "lon": -78.6382,
+    "date": "2026-07-09",
+    "lead": 1,
+    "savedAt": "2026-07-08",
+    "models": {
+      "ecmwf_ifs025": {
+        "hi": 33.3,
+        "lo": 23,
+        "pr": 3.9
+      },
+      "gfs_seamless": {
+        "hi": 35.1,
+        "lo": 22.6,
+        "pr": 0
+      },
+      "icon_seamless": {
+        "hi": 34.5,
+        "lo": 23.8,
+        "pr": 0.4
+      },
+      "meteofrance_seamless": {
+        "hi": 33.7,
+        "lo": 25.6,
+        "pr": 4.9
+      },
+      "ukmo_seamless": {
+        "hi": 35.1,
+        "lo": 25,
+        "pr": 0
+      },
+      "jma_seamless": {
+        "hi": 31.5,
+        "lo": 24.2,
+        "pr": 7.6
+      },
+      "gem_seamless": {
+        "hi": 36,
+        "lo": 24.1,
+        "pr": 0.3
+      },
+      "cma_grapes_global": {
+        "hi": 37.8,
+        "lo": 24.7,
+        "pr": 2.6
+      }
+    }
+  },
+  "35.78,-78.64|2026-07-10|L2": {
+    "name": "Raleigh",
+    "lat": 35.7796,
+    "lon": -78.6382,
+    "date": "2026-07-10",
+    "lead": 2,
+    "savedAt": "2026-07-08",
+    "models": {
+      "ecmwf_ifs025": {
+        "hi": 34.1,
+        "lo": 23.7,
+        "pr": 0.6
+      },
+      "gfs_seamless": {
+        "hi": 37.1,
+        "lo": 25.2,
+        "pr": 0.43
+      },
+      "icon_seamless": {
+        "hi": 36.2,
+        "lo": 23.7,
+        "pr": 0
+      },
+      "meteofrance_seamless": {
+        "hi": 34.5,
+        "lo": 25.7,
+        "pr": 0.9
+      },
+      "ukmo_seamless": {
+        "hi": 36.1,
+        "lo": 26.4,
+        "pr": 0
+      },
+      "jma_seamless": {
+        "hi": 32.4,
+        "lo": 25.1,
+        "pr": 0
+      },
+      "gem_seamless": {
+        "hi": 34.8,
+        "lo": 24.2,
+        "pr": 0.6
+      },
+      "cma_grapes_global": {
+        "hi": 37.7,
+        "lo": 24.9,
+        "pr": 0.2
+      }
+    }
+  },
+  "35.78,-78.64|2026-07-11|L3": {
+    "name": "Raleigh",
+    "lat": 35.7796,
+    "lon": -78.6382,
+    "date": "2026-07-11",
+    "lead": 3,
+    "savedAt": "2026-07-08",
+    "models": {
+      "ecmwf_ifs025": {
+        "hi": 33.9,
+        "lo": 23.3,
+        "pr": 9.8
+      },
+      "gfs_seamless": {
+        "hi": 35.4,
+        "lo": 23.6,
+        "pr": 5.5
+      },
+      "icon_seamless": {
+        "hi": 35.1,
+        "lo": 25,
+        "pr": 1.2
+      },
+      "meteofrance_seamless": {
+        "hi": 31.9,
+        "lo": 26.2,
+        "pr": 3.3
+      },
+      "ukmo_seamless": {
+        "hi": 31.3,
+        "lo": 26,
+        "pr": 9.9
+      },
+      "jma_seamless": {
+        "hi": 29.6,
+        "lo": 25,
+        "pr": 2.9
+      },
+      "gem_seamless": {
+        "hi": 33.6,
+        "lo": 24.6,
+        "pr": 3.6
+      },
+      "cma_grapes_global": {
+        "hi": 36.9,
+        "lo": 24.3,
+        "pr": 1.2
+      }
+    }
   }
 }
