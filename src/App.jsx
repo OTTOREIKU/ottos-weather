@@ -3,6 +3,7 @@ import { fetchForecast, fetchAlerts, fetchMinutely, fetchDetails } from './api/o
 import { fetchExtraSources, ALL_MODELS } from './api/sources.js'
 import { weightsFromScores, biasFromScores, selectScope } from './lib/aggregate.js'
 import * as storage from './lib/storage.js'
+import * as sync from './lib/sync.js'
 import AlertsBanner from './components/AlertsBanner.jsx'
 import SearchBar from './components/SearchBar.jsx'
 import CurrentCard from './components/CurrentCard.jsx'
@@ -80,6 +81,8 @@ export default function App() {
   const [details, setDetails] = useState(null)
   const [sources, setSources] = useState(storage.loadSources)
   const [sourceStatus, setSourceStatus] = useState({})
+  const [syncToken, setSyncToken] = useState(() => storage.loadSetting('synctoken', ''))
+  const [syncStatus, setSyncStatus] = useState('')
   const [updatedAt, setUpdatedAt] = useState(null)
   const [, setTick] = useState(0) // re-render for the "updated x ago" label
   const locationRef = useRef(null)
@@ -138,11 +141,67 @@ export default function App() {
     )
   }, [select])
 
+  // reload every state slice from storage (after a cloud sync pull)
+  const reloadFromStorage = useCallback(() => {
+    setUnits(storage.loadUnits())
+    setSaved(storage.loadLocations())
+    setSources(storage.loadSources())
+    setHourlyWindow(storage.loadSetting('window', 24))
+    setAutoRefresh(storage.loadSetting('autorefresh', 10))
+    setWeighting(storage.loadSetting('weighting', true))
+    setBiasCorrect(storage.loadSetting('biascorrect', true))
+  }, [])
+
   useEffect(() => {
-    const list = storage.loadLocations()
-    if (list.length) select(list[0])
-    else geolocate()
-  }, [select, geolocate])
+    ;(async () => {
+      const token = storage.loadSetting('synctoken', '')
+      if (token) {
+        try {
+          const { data } = await sync.pull(token)
+          if (data) {
+            sync.apply(data)
+            reloadFromStorage()
+            setSyncStatus('synced from cloud')
+          }
+        } catch (e) {
+          setSyncStatus(`sync error: ${String(e.message || e)}`)
+        }
+      }
+      const list = storage.loadLocations()
+      if (list.length) select(list[0])
+      else geolocate()
+    })()
+  }, [select, geolocate, reloadFromStorage])
+
+  const pushSync = useCallback(() => sync.schedulePush(setSyncStatus), [])
+
+  const connectSync = useCallback(
+    async (token) => {
+      setSyncStatus('connecting…')
+      try {
+        const result = await sync.connect(token)
+        storage.saveSetting('synctoken', token)
+        setSyncToken(token)
+        if (result === 'pulled') {
+          reloadFromStorage()
+          const list = storage.loadLocations()
+          if (list.length) select(list[0])
+          setSyncStatus('connected, settings loaded from cloud')
+        } else {
+          setSyncStatus('connected, this device seeded the cloud copy')
+        }
+      } catch (e) {
+        setSyncStatus(`sync error: ${String(e.message || e)}`)
+      }
+    },
+    [reloadFromStorage, select],
+  )
+
+  const disconnectSync = useCallback(() => {
+    storage.saveSetting('synctoken', '')
+    setSyncToken('')
+    setSyncStatus('disconnected (settings stay on this device)')
+  }, [])
 
   // model accuracy scores, produced by the scheduled GitHub Action
   useEffect(() => {
@@ -166,26 +225,32 @@ export default function App() {
   const changeUnits = (u) => {
     setUnits(u)
     storage.saveUnits(u)
+    pushSync()
   }
   const changeWindow = (w) => {
     setHourlyWindow(w)
     storage.saveSetting('window', w)
+    pushSync()
   }
   const changeAutoRefresh = (v) => {
     setAutoRefresh(v)
     storage.saveSetting('autorefresh', v)
+    pushSync()
   }
   const toggleWeighting = (on) => {
     setWeighting(on)
     storage.saveSetting('weighting', on)
+    pushSync()
   }
   const toggleBias = (on) => {
     setBiasCorrect(on)
     storage.saveSetting('biascorrect', on)
+    pushSync()
   }
   const changeSources = (next) => {
     setSources(next)
     storage.saveSources(next)
+    pushSync()
     if (locationRef.current) select(locationRef.current, true)
   }
 
@@ -200,12 +265,14 @@ export default function App() {
     const next = isSaved ? saved.filter((s) => storage.locationKey(s) !== key) : [...saved, location]
     setSaved(next)
     storage.saveLocations(next)
+    pushSync()
   }
 
   const removeSaved = (loc) => {
     const next = saved.filter((s) => storage.locationKey(s) !== storage.locationKey(loc))
     setSaved(next)
     storage.saveLocations(next)
+    pushSync()
   }
 
   // index of the current hour in the forecast arrays (times are local to the
@@ -350,7 +417,15 @@ export default function App() {
             biasActive={!!bias}
             scope={scope?.scope}
           />
-          <SourcesPanel settings={sources} onChange={changeSources} status={sourceStatus} />
+          <SourcesPanel
+            settings={sources}
+            onChange={changeSources}
+            status={sourceStatus}
+            syncToken={syncToken}
+            syncStatus={syncStatus}
+            onConnect={connectSync}
+            onDisconnect={disconnectSync}
+          />
         </>
       )}
 

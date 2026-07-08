@@ -4,12 +4,14 @@ import { callCounts } from '../lib/storage.js'
 
 // Manage optional forecast sources and watch this device's API usage.
 // Keyed services get a client-side budget so free tiers can't be blown past.
-export default function SourcesPanel({ settings, onChange, status = {} }) {
+export default function SourcesPanel({ settings, onChange, status = {}, syncToken, syncStatus, onConnect, onDisconnect }) {
   const [open, setOpen] = useState(false)
   const [keys, setKeys] = useState({
     openweather: settings.openweather?.key || '',
     pirate: settings.pirate?.key || '',
   })
+  const [tokenDraft, setTokenDraft] = useState('')
+  const [showHow, setShowHow] = useState(false)
   const om = callCounts('openmeteo')
 
   const toggle = (id, on) => onChange({ ...settings, [id]: { ...settings[id], on } })
@@ -69,6 +71,53 @@ export default function SourcesPanel({ settings, onChange, status = {} }) {
           <div className="panel-foot">
             Keyed sources stop automatically before their free limits (client-side budget, counted per
             device). Keys stay in this browser's storage and are only sent to their own service.
+          </div>
+
+          <div className="sync-block">
+            <div className="sync-head">
+              <span className="src-name">☁ Device sync</span>
+              <span className="src-note">
+                keys, favorites, and settings sync through your private GitHub repo (weather-settings)
+              </span>
+            </div>
+            {syncToken ? (
+              <div className="sync-row">
+                <span className="src-status">{syncStatus || 'connected'}</span>
+                <button className="close-btn" onClick={onDisconnect}>
+                  disconnect this device
+                </button>
+              </div>
+            ) : (
+              <div className="sync-row">
+                <input
+                  type="password"
+                  placeholder="paste your GitHub access token"
+                  value={tokenDraft}
+                  onChange={(e) => setTokenDraft(e.target.value)}
+                />
+                <button className="connect-btn" disabled={!tokenDraft.trim()} onClick={() => onConnect(tokenDraft.trim())}>
+                  Connect
+                </button>
+                <button className="close-btn" onClick={() => setShowHow(!showHow)}>
+                  how do I get a token?
+                </button>
+                {syncStatus && <span className={`src-status ${syncStatus.includes('error') ? 'err' : ''}`}>{syncStatus}</span>}
+              </div>
+            )}
+            {showHow && !syncToken && (
+              <ol className="sync-how">
+                <li>
+                  Open{' '}
+                  <a href="https://github.com/settings/personal-access-tokens/new" target="_blank" rel="noreferrer">
+                    github.com/settings/personal-access-tokens/new
+                  </a>
+                </li>
+                <li>Name it "weather sync", set expiration to 1 year (or no expiration)</li>
+                <li>Repository access: "Only select repositories" and pick <b>weather-settings</b></li>
+                <li>Permissions: Contents, "Read and write" (nothing else)</li>
+                <li>Generate, copy the token, and paste it above on each of your devices</li>
+              </ol>
+            )}
           </div>
         </div>
       )}
