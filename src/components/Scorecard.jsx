@@ -1,5 +1,5 @@
 import React from 'react'
-import { MODELS } from '../api/openMeteo.js'
+import { ALL_MODELS } from '../api/sources.js'
 
 // Model accuracy scoreboard, fed by data/scores.json which a scheduled GitHub
 // Action updates daily (verified next-day forecasts vs observed history).
@@ -14,7 +14,8 @@ export default function Scorecard({
   biasActive,
   scope,
 }) {
-  const rows = MODELS.map((m) => {
+  // extra sources appear once the collector has verified days for them
+  const rows = ALL_MODELS.filter((m) => !m.extra || scores?.models?.[m.id]?.nT).map((m) => {
     const s = scores?.models?.[m.id]
     if (!s || !s.nT) return { ...m, n: 0 }
     const maeC = s.sumErr / s.nT

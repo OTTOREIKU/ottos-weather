@@ -368,11 +368,11 @@ input {
 /* ---------- model panel ---------- */
 .model-row {
   display: grid;
-  grid-template-columns: 12px 68px 24px 46px 1fr;
+  grid-template-columns: 12px 76px 22px 46px 1fr;
   align-items: center;
-  gap: 8px;
-  padding: 6px 0;
-  font-size: 13.5px;
+  gap: 7px;
+  padding: 4px 0;
+  font-size: 13px;
 }
 
 .model-row .swatch {
@@ -1194,31 +1194,44 @@ input {
 /* ---------- details tiles ---------- */
 .details-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(146px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(146px, 1fr));
   gap: 8px;
 }
 
 .tile {
   background: var(--surface-2);
   border-radius: 10px;
-  padding: 12px;
+  padding: 10px 12px 12px;
   display: flex;
   flex-direction: column;
-  align-items: center;
-  gap: 4px;
-  min-height: 140px;
-  justify-content: flex-start;
+  height: 150px;
   text-align: center;
 }
 
 .tile-k {
   font-size: 12px;
   color: var(--ink-3);
-  align-self: flex-start;
+  text-align: center;
+}
+
+.tile-body {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  min-height: 0;
+}
+
+.tile-foot {
+  font-size: 11.5px;
+  color: var(--ink-3);
+  text-align: center;
 }
 
 .tile-v {
-  font-size: 24px;
+  font-size: 25px;
   font-weight: 700;
   line-height: 1.1;
 }
@@ -1236,8 +1249,9 @@ input {
 
 .ring-wrap {
   position: relative;
-  width: 92px;
-  height: 92px;
+  width: 96px;
+  height: 96px;
+  flex: none;
 }
 
 .ring {
@@ -1264,22 +1278,90 @@ input {
 
 .sun-arc {
   width: 100%;
-  max-width: 150px;
-  margin-top: 4px;
+  max-width: 132px;
 }
 
 .sun-times {
   display: flex;
   justify-content: space-between;
   width: 100%;
-  font-size: 12px;
+  max-width: 138px;
+  font-size: 11.5px;
   color: var(--ink-2);
   font-variant-numeric: tabular-nums;
 }
 
 .moon-emoji {
-  font-size: 42px;
-  line-height: 1.4;
+  font-size: 46px;
+  line-height: 1.2;
+}
+
+/* ---------- sources panel ---------- */
+.count-tag {
+  background: var(--surface-2);
+  border-radius: 999px;
+  padding: 1px 8px;
+  font-size: 10.5px;
+  color: var(--ink-2);
+  margin-left: 6px;
+}
+
+.source-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  padding: 8px 0;
+  font-size: 13.5px;
+}
+
+.source-row + .source-row {
+  border-top: 1px solid var(--surface-2);
+}
+
+.src-name {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 700;
+  min-width: 96px;
+  cursor: pointer;
+}
+
+.src-name input {
+  accent-color: var(--accent);
+}
+
+.src-note {
+  color: var(--ink-3);
+  font-size: 12px;
+}
+
+.src-key input {
+  background: var(--surface-2);
+  border-radius: 8px;
+  padding: 5px 10px;
+  font-size: 12.5px;
+  width: 210px;
+  max-width: 60vw;
+}
+
+.src-key em {
+  color: var(--warning);
+  font-style: normal;
+  font-size: 12px;
+  margin-left: 6px;
+}
+
+.src-usage {
+  margin-left: auto;
+  color: var(--ink-3);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+
+.src-usage.over {
+  color: var(--warning);
 }
 
 /* ---------- mobile polish ---------- */

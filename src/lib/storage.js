@@ -33,6 +33,51 @@ export const saveUnits = (units) => write(UNITS_KEY, units)
 export const loadSetting = (key, fallback) => read(`wa.${key}`, fallback)
 export const saveSetting = (key, value) => write(`wa.${key}`, value)
 
+// ---- per-source API call counters (this device only) ----
+const CALLS_KEY = 'wa.calls'
+
+export function bumpCall(id, n = 1) {
+  const all = read(CALLS_KEY, {})
+  const today = new Date().toISOString().slice(0, 10)
+  const month = today.slice(0, 7)
+  const s = all[id] || {}
+  all[id] = {
+    date: today,
+    day: (s.date === today ? s.day : 0) + n,
+    month,
+    monthCount: (s.month === month ? s.monthCount : 0) + n,
+  }
+  write(CALLS_KEY, all)
+}
+
+export function callCounts(id) {
+  const all = read(CALLS_KEY, {})
+  const today = new Date().toISOString().slice(0, 10)
+  const s = all[id] || {}
+  return {
+    day: s.date === today ? s.day : 0,
+    month: s.month === today.slice(0, 7) ? s.monthCount : 0,
+  }
+}
+
+// true when another call would still be under the caps
+export function underCap(id, dayCap, monthCap) {
+  const c = callCounts(id)
+  if (dayCap && c.day >= dayCap) return false
+  if (monthCap && c.month >= monthCap) return false
+  return true
+}
+
+// ---- extra forecast source settings ----
+const SOURCES_KEY = 'wa.sources'
+export const loadSources = () =>
+  read(SOURCES_KEY, {
+    nws: { on: true },
+    openweather: { on: false, key: '' },
+    pirate: { on: false, key: '' },
+  })
+export const saveSources = (s) => write(SOURCES_KEY, s)
+
 export const locationKey = (loc) => `${loc.lat.toFixed(2)},${loc.lon.toFixed(2)}`
 
 // Record each model's hi/lo/precip forecast for today and tomorrow. Once

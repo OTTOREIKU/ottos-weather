@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react'
-import { MODELS } from '../api/openMeteo.js'
+import { ALL_MODELS as MODELS } from '../api/sources.js'
 import { aggregateSeries, agreementAt, consensusCode } from '../lib/aggregate.js'
 import { describe } from '../lib/weatherCodes.js'
 import { cToF, precip } from '../lib/convert.js'
@@ -409,7 +409,7 @@ export default function HourlyChart({ data, units, weights, bias, startIndex, ho
         <span className="item">
           <span className="swatch" style={{ background: 'rgba(255,255,255,0.14)', borderRadius: 2, width: 12 }} /> Model spread
         </span>
-        {MODELS.map((m) => (
+        {MODELS.filter((m) => Array.isArray(view.perModelTemp[m.id])).map((m) => (
           <span className="item" key={m.id}>
             <span className="swatch" style={{ background: m.color }} /> {m.label}
           </span>

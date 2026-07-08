@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { fetchForecast, fetchAlerts, fetchMinutely, fetchDetails, MODELS } from './api/openMeteo.js'
+import { fetchForecast, fetchAlerts, fetchMinutely, fetchDetails } from './api/openMeteo.js'
+import { fetchExtraSources, ALL_MODELS } from './api/sources.js'
 import { weightsFromScores, biasFromScores, selectScope } from './lib/aggregate.js'
 import * as storage from './lib/storage.js'
 import AlertsBanner from './components/AlertsBanner.jsx'
@@ -9,6 +10,7 @@ import ModelPanel from './components/ModelPanel.jsx'
 import HourlyChart from './components/HourlyChart.jsx'
 import DailySection from './components/DailySection.jsx'
 import DetailsSection from './components/DetailsSection.jsx'
+import SourcesPanel from './components/SourcesPanel.jsx'
 import RadarMap from './components/RadarMap.jsx'
 import Scorecard from './components/Scorecard.jsx'
 
@@ -76,6 +78,7 @@ export default function App() {
   const [alerts, setAlerts] = useState([])
   const [rainSoon, setRainSoon] = useState(null)
   const [details, setDetails] = useState(null)
+  const [sources, setSources] = useState(storage.loadSources)
   const [updatedAt, setUpdatedAt] = useState(null)
   const [, setTick] = useState(0) // re-render for the "updated x ago" label
   const locationRef = useRef(null)
@@ -98,6 +101,10 @@ export default function App() {
       setStatus('ready')
       setUpdatedAt(Date.now())
       storage.logSnapshot(loc, d)
+      // enrich with the extra sources once they respond
+      fetchExtraSources(d, loc, storage.loadSources())
+        .then((merged) => merged && locationRef.current === loc && setData(merged))
+        .catch(() => {})
     } catch (e) {
       if (!isRefresh) {
         setErrorMsg(e.message)
@@ -171,6 +178,11 @@ export default function App() {
     setBiasCorrect(on)
     storage.saveSetting('biascorrect', on)
   }
+  const changeSources = (next) => {
+    setSources(next)
+    storage.saveSources(next)
+    if (locationRef.current) select(locationRef.current, true)
+  }
 
   const isSaved = useMemo(
     () => !!location && saved.some((s) => storage.locationKey(s) === storage.locationKey(location)),
@@ -211,7 +223,7 @@ export default function App() {
     () => (location ? selectScope(scores, storage.locationKey(location)) : null),
     [scores, location],
   )
-  const modelIds = useMemo(() => MODELS.map((m) => m.id), [])
+  const modelIds = useMemo(() => ALL_MODELS.map((m) => m.id), [])
   const weights = useMemo(
     () => (weighting && scope ? weightsFromScores(scope.models, modelIds) : null),
     [scope, weighting, modelIds],
@@ -226,7 +238,7 @@ export default function App() {
       <div className="header">
         <div className="brand">
           OTTO's Weather
-          <small>8 independent forecast models · mean &amp; spread</small>
+          <small>Multi-model forecast · mean &amp; spread</small>
         </div>
         <SearchBar onPick={select} onGeolocate={geolocate} />
         <div className="segmented">
@@ -284,7 +296,7 @@ export default function App() {
       {status === 'idle' && (
         <div className="notice">Search for a city above, or hit ◎ to use your location.</div>
       )}
-      {status === 'loading' && <div className="notice">Fetching 8 forecast models…</div>}
+      {status === 'loading' && <div className="notice">Fetching forecast models…</div>}
       {status === 'error' && <div className="notice error">Couldn't load forecast: {errorMsg}</div>}
 
       {status === 'ready' && data && location && tab === 'forecast' && (
@@ -335,15 +347,16 @@ export default function App() {
             biasActive={!!bias}
             scope={scope?.scope}
           />
+          <SourcesPanel settings={sources} onChange={changeSources} />
         </>
       )}
 
       {status === 'ready' && location && tab === 'radar' && <RadarMap location={location} />}
 
       <div className="footer">
-        Forecast data by <a href="https://open-meteo.com/">Open-Meteo</a> (ECMWF, GFS, ICON, ARPEGE, UKMO,
-        JMA, GEM, CMA) · Alerts by NWS · Radar by <a href="https://www.rainviewer.com/">RainViewer</a> · Map
-        &copy; OpenStreetMap &amp; CARTO
+        Forecast data by <a href="https://open-meteo.com/">Open-Meteo</a> (8 global models), with optional
+        NWS, OpenWeather, and PirateWeather sources · Alerts by NWS · Radar by{' '}
+        <a href="https://www.rainviewer.com/">RainViewer</a> · Map &copy; OpenStreetMap &amp; CARTO
       </div>
     </div>
   )

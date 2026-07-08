@@ -1,7 +1,7 @@
 import React from 'react'
 import { kstats, valuesAt } from '../lib/aggregate.js'
 import { moonPhase } from '../lib/astro.js'
-import { temp, pressure } from '../lib/convert.js'
+import { temp, wind, pressure } from '../lib/convert.js'
 
 const AQI_LEVELS = [
   [50, 'Good', 'var(--good)'],
@@ -21,6 +21,17 @@ const UV_LEVELS = [
 ]
 
 const level = (levels, v) => levels.find(([max]) => v <= max)
+
+// Every tile shares one skeleton: label on top, content centered in the rest.
+function Tile({ label, children, foot }) {
+  return (
+    <div className="tile">
+      <div className="tile-k">{label}</div>
+      <div className="tile-body">{children}</div>
+      {foot && <div className="tile-foot">{foot}</div>}
+    </div>
+  )
+}
 
 function Ring({ frac, color, children }) {
   const R = 42
@@ -57,13 +68,15 @@ function clock12(iso) {
 const isoMinutes = (iso) => Number(iso.slice(11, 13)) * 60 + Number(iso.slice(14, 16))
 
 export default function DetailsSection({ data, details, units, nowIndex }) {
-  const humidity = kstats(valuesAt(data.hourly.relative_humidity_2m, nowIndex))
   const dew = kstats(valuesAt(data.hourly.dew_point_2m, nowIndex))
+  const windSt = kstats(valuesAt(data.hourly.wind_speed_10m, nowIndex))
+  const cloud = kstats(valuesAt(data.hourly.cloud_cover, nowIndex))
   const press = kstats(valuesAt(data.hourly.pressure_msl, nowIndex))
   const pressAgo = nowIndex >= 3 ? kstats(valuesAt(data.hourly.pressure_msl, nowIndex - 3)) : null
+  const w = wind(windSt?.mean, units)
   const ps = pressure(press?.mean, units)
   const delta = press && pressAgo ? press.mean - pressAgo.mean : null
-  const trend = delta == null ? null : delta > 1 ? ['↑', 'rising'] : delta < -1 ? ['↓', 'falling'] : ['→', 'steady']
+  const trend = delta == null ? null : delta > 1 ? '↑ rising' : delta < -1 ? '↓ falling' : '→ steady'
 
   const sunrise = Object.values(data.daily.sunrise).find(Array.isArray)?.[0]
   const sunset = Object.values(data.daily.sunset).find(Array.isArray)?.[0]
@@ -82,22 +95,35 @@ export default function DetailsSection({ data, details, units, nowIndex }) {
   const aqiLevel = details?.aqi != null ? level(AQI_LEVELS, details.aqi) : null
   const uvLevel = details?.uvNow != null ? level(UV_LEVELS, details.uvNow) : null
   const visKm = details?.visibility != null ? details.visibility / 1000 : null
-  const visVal =
-    visKm == null ? null : units === 'imperial' ? `${(visKm * 0.621371).toFixed(1)}` : `${visKm.toFixed(1)}`
+  const visVal = visKm == null ? null : units === 'imperial' ? (visKm * 0.621371).toFixed(1) : visKm.toFixed(1)
   const visQual = visKm == null ? '' : visKm >= 10 ? 'Good' : visKm >= 4 ? 'Moderate' : 'Poor'
 
   return (
     <div className="card chart-card">
       <div className="section-title">Details</div>
       <div className="details-grid">
-        <div className="tile">
-          <div className="tile-k">💧 Humidity</div>
-          <div className="tile-v">{humidity ? Math.round(humidity.mean) : '–'}<small>%</small></div>
-          <div className="tile-sub">Dew point {temp(dew?.mean, units)}°</div>
-        </div>
+        <Tile label="🌬 Wind">
+          <div className="tile-v">
+            {w.value}<small> {w.unit}</small>
+          </div>
+        </Tile>
 
-        <div className="tile">
-          <div className="tile-k">🫧 Air quality</div>
+        <Tile label="☁️ Cloud cover">
+          <div className="tile-v">{cloud ? Math.round(cloud.mean) : '–'}<small>%</small></div>
+        </Tile>
+
+        <Tile label="💧 Dew point">
+          <div className="tile-v">{temp(dew?.mean, units)}<small>°</small></div>
+        </Tile>
+
+        <Tile label="🌡 Pressure">
+          <div className="tile-v">
+            {ps.value}<small> {ps.unit}</small>
+          </div>
+          {trend && <div className="tile-sub">{trend}</div>}
+        </Tile>
+
+        <Tile label="🫧 Air quality">
           {details?.aqi != null ? (
             <Ring frac={details.aqi / 300} color={aqiLevel[2]}>
               <div className="tile-v">{Math.round(details.aqi)}</div>
@@ -106,10 +132,9 @@ export default function DetailsSection({ data, details, units, nowIndex }) {
           ) : (
             <div className="tile-sub">unavailable</div>
           )}
-        </div>
+        </Tile>
 
-        <div className="tile">
-          <div className="tile-k">☀️ UV index</div>
+        <Tile label="☀️ UV index" foot={details?.uvMax != null ? `peak today ${details.uvMax.toFixed(1)}` : null}>
           {details?.uvNow != null ? (
             <Ring frac={details.uvNow / 11} color={uvLevel[2]}>
               <div className="tile-v">{details.uvNow.toFixed(1)}</div>
@@ -118,27 +143,16 @@ export default function DetailsSection({ data, details, units, nowIndex }) {
           ) : (
             <div className="tile-sub">unavailable</div>
           )}
-          {details?.uvMax != null && <div className="tile-sub">peak today {details.uvMax.toFixed(1)}</div>}
-        </div>
+        </Tile>
 
-        <div className="tile">
-          <div className="tile-k">👁 Visibility</div>
+        <Tile label="👁 Visibility">
           <div className="tile-v">
             {visVal ?? '–'}<small> {units === 'imperial' ? 'mi' : 'km'}</small>
           </div>
-          <div className="tile-sub">{visQual}</div>
-        </div>
+          {visQual && <div className="tile-sub">{visQual}</div>}
+        </Tile>
 
-        <div className="tile">
-          <div className="tile-k">🌡 Pressure</div>
-          <div className="tile-v">
-            {ps.value}<small> {ps.unit}</small>
-          </div>
-          <div className="tile-sub">{trend ? `${trend[0]} ${trend[1]}` : ''}</div>
-        </div>
-
-        <div className="tile">
-          <div className="tile-k">☀️ Sun</div>
+        <Tile label="☀️ Sun" foot={!daylight ? 'night' : null}>
           <svg viewBox="0 0 150 95" className="sun-arc">
             <path d="M 15 85 A 60 60 0 0 1 135 85" fill="none" stroke="var(--ink-3)" strokeWidth="1.5" strokeDasharray="3 5" />
             <line x1="8" y1="85" x2="142" y2="85" stroke="var(--surface-3)" strokeWidth="1" />
@@ -146,18 +160,13 @@ export default function DetailsSection({ data, details, units, nowIndex }) {
           </svg>
           <div className="sun-times">
             <span>{clock12(sunrise)}</span>
-            {!daylight && <span className="tile-sub">night</span>}
             <span>{clock12(sunset)}</span>
           </div>
-        </div>
+        </Tile>
 
-        <div className="tile">
-          <div className="tile-k">🌙 Moon</div>
+        <Tile label="🌙 Moon" foot={`${moon.name} · ${moon.illumination}% lit`}>
           <div className="moon-emoji">{moon.emoji}</div>
-          <div className="tile-sub">
-            {moon.name} · {moon.illumination}% lit
-          </div>
-        </div>
+        </Tile>
       </div>
     </div>
   )

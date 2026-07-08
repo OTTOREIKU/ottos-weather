@@ -1,7 +1,7 @@
 import React from 'react'
 import { kstats, valuesAt, consensusCode, spreadTone } from '../lib/aggregate.js'
 import { describe } from '../lib/weatherCodes.js'
-import { temp, wind, precip } from '../lib/convert.js'
+import { temp, precip } from '../lib/convert.js'
 
 const TONE_COLOR = { good: 'var(--good)', warning: 'var(--warning)', serious: 'var(--serious)', muted: 'var(--ink-3)' }
 const TONE_ICON = { good: '●', warning: '▲', serious: '◆', muted: '·' }
@@ -12,8 +12,6 @@ export default function CurrentCard({ data, units, weights, bias, rainSoon, loca
   const tempStats = kstats(at('temperature_2m'), weights, bias)
   const feels = kstats(at('apparent_temperature'), weights)
   const humidity = kstats(at('relative_humidity_2m'))
-  const windSt = kstats(at('wind_speed_10m'))
-  const cloud = kstats(at('cloud_cover'))
   const rain = kstats(at('precipitation'))
   const code = consensusCode(Object.values(at('weather_code')))
   const cond = describe(code)
@@ -23,7 +21,6 @@ export default function CurrentCard({ data, units, weights, bias, rainSoon, loca
 
   const range = tempStats ? tempStats.max - tempStats.min : null
   const tone = spreadTone(range)
-  const w = wind(windSt?.mean, units)
   const pr = precip(rain?.mean, units)
   const smart = [weights && 'weighted', bias && 'bias-corrected'].filter(Boolean).join(' · ')
 
@@ -62,16 +59,6 @@ export default function CurrentCard({ data, units, weights, bias, rainSoon, loca
         <div className="stat">
           <div className="k">Humidity</div>
           <div className="v">{humidity ? Math.round(humidity.mean) : '–'}<small>%</small></div>
-        </div>
-        <div className="stat">
-          <div className="k">Wind</div>
-          <div className="v">
-            {w.value} <small>{w.unit}</small>
-          </div>
-        </div>
-        <div className="stat">
-          <div className="k">Cloud cover</div>
-          <div className="v">{cloud ? Math.round(cloud.mean) : '–'}<small>%</small></div>
         </div>
         <div className="stat">
           <div className="k">Precip (now)</div>

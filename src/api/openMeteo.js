@@ -1,4 +1,5 @@
 // Open-Meteo API: forecast (multi-model), geocoding. No key required.
+import { bumpCall } from '../lib/storage.js'
 // Colors are the dark-mode categorical palette slots, fixed order per model.
 export const MODELS = [
   { id: 'ecmwf_ifs025', label: 'ECMWF', agency: 'ECMWF · Europe', color: '#3987e5' },
@@ -58,6 +59,7 @@ export async function fetchForecast(lat, lon) {
     timezone: 'auto',
     forecast_days: '8',
   })
+  bumpCall('openmeteo')
   const res = await fetch(`https://api.open-meteo.com/v1/forecast?${params}`)
   if (!res.ok) throw new Error(`Forecast request failed (${res.status})`)
   const json = await res.json()
@@ -115,6 +117,7 @@ export async function geocode(query) {
     language: 'en',
     format: 'json',
   })
+  bumpCall('openmeteo')
   const res = await fetch(`https://geocoding-api.open-meteo.com/v1/search?${params}`)
   if (!res.ok) throw new Error(`Geocoding failed (${res.status})`)
   const json = await res.json()
@@ -151,6 +154,7 @@ export async function fetchMinutely(lat, lon) {
     forecast_days: '2',
     timezone: 'auto',
   })
+  bumpCall('openmeteo')
   const res = await fetch(`https://api.open-meteo.com/v1/forecast?${params}`)
   if (!res.ok) throw new Error(`Minutely request failed (${res.status})`)
   const json = await res.json()
@@ -166,6 +170,7 @@ export async function fetchMinutely(lat, lon) {
 export async function fetchDetails(lat, lon) {
   const out = { aqi: null, uvNow: null, uvMax: null, visibility: null }
   const ll = { latitude: lat.toFixed(4), longitude: lon.toFixed(4), timezone: 'auto' }
+  bumpCall('openmeteo', 2)
   const [aq, fc] = await Promise.allSettled([
     fetch(`https://air-quality-api.open-meteo.com/v1/air-quality?${new URLSearchParams({ ...ll, current: 'us_aqi' })}`).then((r) => r.json()),
     fetch(
