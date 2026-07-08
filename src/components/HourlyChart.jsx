@@ -177,11 +177,13 @@ export default function HourlyChart({ data, units, weights, startIndex, hours, n
     if (e.pointerType === 'mouse') setHover(null)
   }
 
-  const sel = hover ?? pinned
+  // clamp: hover/pinned can briefly exceed the window right after it shrinks
+  // (e.g. scrubbed to hour 40, then switched 48h -> 12h)
+  const sel = Math.max(0, Math.min(hover ?? pinned, view.n - 1))
   const nowInWindow = nowIndex - view.start
   const showNow = nowInWindow >= 0 && nowInWindow < view.n
 
-  const ttLeft = hover != null ? Math.min(x(hover) + 12, width - 196) : 0
+  const ttLeft = hover != null ? Math.min(x(sel) + 12, width - 196) : 0
   const selRain = agreementAt(view.perModelPrecip, sel)
   const selRainMean = view.precipAgg.mean[sel]
   const selPr = precip(selRainMean, units)
@@ -310,7 +312,7 @@ export default function HourlyChart({ data, units, weights, startIndex, hours, n
         {hover != null && (
           <div className="chart-tooltip" style={{ left: ttLeft, top: 8 }}>
             <div className="tt-time">
-              {weekday(view.times[hover])} {hourLabel(view.times[hover])}
+              {weekday(view.times[sel])} {hourLabel(view.times[sel])}
             </div>
             {readoutRows.map((m) => (
               <div className="tt-row" key={m.id}>
@@ -323,7 +325,7 @@ export default function HourlyChart({ data, units, weights, startIndex, hours, n
             ))}
             <div className="tt-row tt-mean">
               <span>Mean</span>
-              <span>{Number.isFinite(view.agg.mean[hover]) ? Math.round(u(view.agg.mean[hover])) : '–'}°</span>
+              <span>{Number.isFinite(view.agg.mean[sel]) ? Math.round(u(view.agg.mean[sel])) : '–'}°</span>
             </div>
             {selRain.agree > 0 && (
               <div className="tt-row">
