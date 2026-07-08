@@ -161,6 +161,41 @@ export async function fetchMinutely(lat, lon) {
   }
 }
 
+// Air quality, UV index, and visibility for the details tiles. Both endpoints
+// are keyless; failures degrade to empty tiles rather than blocking anything.
+export async function fetchDetails(lat, lon) {
+  const out = { aqi: null, uvNow: null, uvMax: null, visibility: null }
+  const ll = { latitude: lat.toFixed(4), longitude: lon.toFixed(4), timezone: 'auto' }
+  const [aq, fc] = await Promise.allSettled([
+    fetch(`https://air-quality-api.open-meteo.com/v1/air-quality?${new URLSearchParams({ ...ll, current: 'us_aqi' })}`).then((r) => r.json()),
+    fetch(
+      `https://api.open-meteo.com/v1/forecast?${new URLSearchParams({
+        ...ll,
+        hourly: 'uv_index,visibility',
+        daily: 'uv_index_max',
+        forecast_days: '1',
+      })}`,
+    ).then((r) => r.json()),
+  ])
+  if (aq.status === 'fulfilled' && Number.isFinite(aq.value?.current?.us_aqi)) {
+    out.aqi = aq.value.current.us_aqi
+  }
+  if (fc.status === 'fulfilled' && fc.value?.hourly) {
+    const j = fc.value
+    const nowLocal = new Date(Date.now() + j.utc_offset_seconds * 1000)
+    const iso = `${nowLocal.toISOString().slice(0, 13)}:00`
+    let idx = 0
+    for (let i = 0; i < j.hourly.time.length; i++) {
+      if (j.hourly.time[i] <= iso) idx = i
+      else break
+    }
+    out.uvNow = j.hourly.uv_index?.[idx] ?? null
+    out.visibility = j.hourly.visibility?.[idx] ?? null
+    out.uvMax = j.daily?.uv_index_max?.[0] ?? null
+  }
+  return out
+}
+
 const SEVERITY_RANK = { Extreme: 0, Severe: 1, Moderate: 2, Minor: 3, Unknown: 4 }
 
 // Active NWS alerts for a point (official US National Weather Service, no key).

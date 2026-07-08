@@ -1,19 +1,10 @@
 import React from 'react'
 import { kstats, valuesAt, consensusCode, spreadTone } from '../lib/aggregate.js'
 import { describe } from '../lib/weatherCodes.js'
-import { temp, wind, precip, pressure } from '../lib/convert.js'
+import { temp, wind, precip } from '../lib/convert.js'
 
 const TONE_COLOR = { good: 'var(--good)', warning: 'var(--warning)', serious: 'var(--serious)', muted: 'var(--ink-3)' }
 const TONE_ICON = { good: '●', warning: '▲', serious: '◆', muted: '·' }
-
-function fmtClock(iso) {
-  if (!iso) return '–'
-  const [, hm] = iso.split('T')
-  const [h, m] = hm.split(':').map(Number)
-  const ampm = h >= 12 ? 'PM' : 'AM'
-  const h12 = h % 12 === 0 ? 12 : h % 12
-  return `${h12}:${String(m).padStart(2, '0')} ${ampm}`
-}
 
 export default function CurrentCard({ data, units, weights, bias, rainSoon, location, nowIndex, isSaved, onToggleSave }) {
   const at = (v) => valuesAt(data.hourly[v], nowIndex)
@@ -24,21 +15,16 @@ export default function CurrentCard({ data, units, weights, bias, rainSoon, loca
   const windSt = kstats(at('wind_speed_10m'))
   const cloud = kstats(at('cloud_cover'))
   const rain = kstats(at('precipitation'))
-  const dew = kstats(at('dew_point_2m'), weights)
-  const press = kstats(at('pressure_msl'))
   const code = consensusCode(Object.values(at('weather_code')))
   const cond = describe(code)
 
   const hi = kstats(valuesAt(data.daily.temperature_2m_max, 0), weights, bias)
   const lo = kstats(valuesAt(data.daily.temperature_2m_min, 0), weights, bias)
-  const sunrise = Object.values(data.daily.sunrise).find(Array.isArray)?.[0]
-  const sunset = Object.values(data.daily.sunset).find(Array.isArray)?.[0]
 
   const range = tempStats ? tempStats.max - tempStats.min : null
   const tone = spreadTone(range)
   const w = wind(windSt?.mean, units)
   const pr = precip(rain?.mean, units)
-  const ps = pressure(press?.mean, units)
   const smart = [weights && 'weighted', bias && 'bias-corrected'].filter(Boolean).join(' · ')
 
   return (
@@ -91,22 +77,6 @@ export default function CurrentCard({ data, units, weights, bias, rainSoon, loca
           <div className="k">Precip (now)</div>
           <div className="v">
             {pr.value} <small>{pr.unit}</small>
-          </div>
-        </div>
-        <div className="stat">
-          <div className="k">Dew point</div>
-          <div className="v">{temp(dew?.mean, units)}<small>°</small></div>
-        </div>
-        <div className="stat">
-          <div className="k">Pressure</div>
-          <div className="v">
-            {ps.value} <small>{ps.unit}</small>
-          </div>
-        </div>
-        <div className="stat">
-          <div className="k">Sunrise / Sunset</div>
-          <div className="v" style={{ fontSize: 13.5 }}>
-            {fmtClock(sunrise)} <small>/ {fmtClock(sunset)}</small>
           </div>
         </div>
       </div>

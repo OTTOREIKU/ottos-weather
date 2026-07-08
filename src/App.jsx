@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { fetchForecast, fetchAlerts, fetchMinutely, MODELS } from './api/openMeteo.js'
+import { fetchForecast, fetchAlerts, fetchMinutely, fetchDetails, MODELS } from './api/openMeteo.js'
 import { weightsFromScores, biasFromScores, selectScope } from './lib/aggregate.js'
 import * as storage from './lib/storage.js'
 import AlertsBanner from './components/AlertsBanner.jsx'
@@ -8,6 +8,7 @@ import CurrentCard from './components/CurrentCard.jsx'
 import ModelPanel from './components/ModelPanel.jsx'
 import HourlyChart from './components/HourlyChart.jsx'
 import DailySection from './components/DailySection.jsx'
+import DetailsSection from './components/DetailsSection.jsx'
 import RadarMap from './components/RadarMap.jsx'
 import Scorecard from './components/Scorecard.jsx'
 
@@ -74,6 +75,7 @@ export default function App() {
   const [scores, setScores] = useState(null)
   const [alerts, setAlerts] = useState([])
   const [rainSoon, setRainSoon] = useState(null)
+  const [details, setDetails] = useState(null)
   const [updatedAt, setUpdatedAt] = useState(null)
   const [, setTick] = useState(0) // re-render for the "updated x ago" label
   const locationRef = useRef(null)
@@ -87,6 +89,9 @@ export default function App() {
     fetchMinutely(loc.lat, loc.lon)
       .then((m) => locationRef.current === loc && setRainSoon(analyzeRainSoon(m)))
       .catch(() => setRainSoon(null))
+    fetchDetails(loc.lat, loc.lon)
+      .then((d) => locationRef.current === loc && setDetails(d))
+      .catch(() => setDetails(null))
     try {
       const d = await fetchForecast(loc.lat, loc.lon)
       setData(d)
@@ -298,6 +303,7 @@ export default function App() {
             />
             <ModelPanel data={data} units={units} weights={weights} nowIndex={nowIndex} />
           </div>
+          <DetailsSection data={data} details={details} units={units} nowIndex={nowIndex} />
           <HourlyChart
             data={data}
             units={units}
