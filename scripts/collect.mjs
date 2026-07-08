@@ -157,6 +157,10 @@ for (const entries of byLoc.values()) {
       const bump = (s) => {
         s.nT = (s.nT || 0) + 1
         s.sumErr = (s.sumErr || 0) + err
+        // signed bias: positive = model runs hot. Enables bias correction
+        // later, which is stronger than down-weighting alone.
+        s.sumBiasHi = (s.sumBiasHi || 0) + (f.hi - actual.hi)
+        s.sumBiasLo = (s.sumBiasLo || 0) + (f.lo - actual.lo)
         s.rain ||= { hit: 0, miss: 0, fa: 0, cn: 0 }
         if (Number.isFinite(f.pr) && Number.isFinite(actual.pr)) {
           const predicted = f.pr >= RAIN_MM
