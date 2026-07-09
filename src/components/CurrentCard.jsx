@@ -33,16 +33,20 @@ export default function CurrentCard({ data, units, weights, bias, rainSoon, rada
     .filter(([, v]) => Number.isFinite(v))
     .map(([id, v]) => ({ id, wet: v > 0.05 }))
   const wetModels = modelCalls.filter((m) => m.wet)
-  let reality = null
+  let radarBadge = null
   if (radarNow && modelCalls.length) {
     if (radarNow.raining) {
-      reality = `📡 Radar: ${RADAR_WORDS[radarNow.intensity]} at your location · ${
+      radarBadge = `${RADAR_WORDS[radarNow.intensity]} at your location · ${
         wetModels.length ? `${wetModels.length}/${modelCalls.length} models are calling it` : 'no model saw it coming'
       }`
     } else if (wetModels.length >= 2) {
-      reality = `📡 Radar: dry at your location · ${wetModels.length}/${modelCalls.length} models expect rain this hour`
+      radarBadge = `dry at your location · ${wetModels.length}/${modelCalls.length} models expect rain this hour`
     }
   }
+  // rain-soon strings arrive as "🌧 Rain expected around 3:40 PM"; split into
+  // a title emoji and the detail line for the stacked badge
+  const rainEmoji = rainSoon ? rainSoon.split(' ')[0] : ''
+  const rainSub = rainSoon ? rainSoon.replace(/^\S+\s+Rain\s+/, '') : null
 
   return (
     <div className="card">
@@ -54,29 +58,45 @@ export default function CurrentCard({ data, units, weights, bias, rainSoon, rada
         </button>
       </div>
 
-      <div className="current-main">
-        <div className="current-icon">{cond.icon}</div>
-        <div className="current-temp">{temp(tempStats?.mean, units)}°</div>
-        <div className="current-cond">
-          <div>{cond.label}</div>
-          <div className="feels">Feels like {temp(feels?.mean, units)}°</div>
-          <div className="badge">
-            <span className="dot" style={{ background: TONE_COLOR[tone.tone] }} />
-            {TONE_ICON[tone.tone]} {tone.label} · {temp(tempStats?.min, units)}–{temp(tempStats?.max, units)}° across {tempStats?.count ?? 0} models
-            {smart ? ` · ${smart}` : ''}
+      <div className="hero-main">
+        <div className="hero-id">
+          <div className="current-icon">{cond.icon}</div>
+          <div className="current-temp">{temp(tempStats?.mean, units)}°</div>
+          <div className="hero-cond">
+            <div className="cond-label">{cond.label}</div>
+            <div className="feels">Feels like {temp(feels?.mean, units)}°</div>
+            <div className="hilo">
+              High {temp(hi?.mean, units)}° / Low {temp(lo?.mean, units)}°
+            </div>
           </div>
-          {reality && <div className="reality">{reality}</div>}
-          {rainSoon && <div className="rain-soon">{rainSoon}</div>}
+        </div>
+        <div className="hero-badges">
+          <div className="hbadge">
+            <div className="hb-title">
+              <span className="dot" style={{ background: TONE_COLOR[tone.tone] }} />
+              {TONE_ICON[tone.tone]} {tone.label}
+            </div>
+            <div className="hb-sub">
+              {temp(tempStats?.min, units)}–{temp(tempStats?.max, units)}° across {tempStats?.count ?? 0} models
+              {smart ? ` · ${smart}` : ''}
+            </div>
+          </div>
+          {radarBadge && (
+            <div className="hbadge radar">
+              <div className="hb-title">📡 Radar</div>
+              <div className="hb-sub">{radarBadge}</div>
+            </div>
+          )}
+          {rainSub && (
+            <div className="hbadge rain">
+              <div className="hb-title">{rainEmoji} Rain soon</div>
+              <div className="hb-sub">{rainSub}</div>
+            </div>
+          )}
         </div>
       </div>
 
       <div className="stat-row">
-        <div className="stat">
-          <div className="k">High / Low</div>
-          <div className="v">
-            {temp(hi?.mean, units)}° <small>/ {temp(lo?.mean, units)}°</small>
-          </div>
-        </div>
         <div className="stat">
           <div className="k">Humidity</div>
           <div className="v">{humidity ? Math.round(humidity.mean) : '–'}<small>%</small></div>

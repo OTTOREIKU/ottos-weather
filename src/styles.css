@@ -1120,6 +1120,158 @@ button.item:hover {
   font-size: 11.5px;
 }
 
+/* ---------- hero layout ---------- */
+.hero-main {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  margin: 10px 0 16px;
+}
+
+.hero-id {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  flex: 1;
+  min-width: 0;
+}
+
+.hero-id .current-icon {
+  font-size: 64px;
+  line-height: 1;
+}
+
+.hero-id .current-temp {
+  font-size: 84px;
+  font-weight: 700;
+  line-height: 1;
+  letter-spacing: -0.02em;
+}
+
+.hero-cond {
+  padding-top: 6px;
+}
+
+.cond-label {
+  font-size: 22px;
+  font-weight: 650;
+}
+
+.hero-cond .feels,
+.hero-cond .hilo {
+  font-size: 14px;
+  color: var(--ink-3);
+  margin-top: 2px;
+}
+
+.hero-badges {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  flex: 0 0 auto;
+  min-width: 220px;
+  max-width: 280px;
+}
+
+.hbadge {
+  background: var(--surface-2);
+  border-radius: 10px;
+  padding: 8px 14px;
+}
+
+.hbadge .hb-title {
+  font-size: 13px;
+  font-weight: 650;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.hbadge .hb-title .dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex: none;
+}
+
+.hbadge .hb-sub {
+  font-size: 12px;
+  color: var(--ink-3);
+  margin-top: 2px;
+}
+
+.hbadge.radar {
+  background: rgba(250, 178, 25, 0.12);
+}
+
+.hbadge.radar .hb-title {
+  color: var(--warning);
+}
+
+.hbadge.radar .hb-sub {
+  color: var(--ink-2);
+}
+
+.hbadge.rain {
+  background: rgba(57, 135, 229, 0.14);
+}
+
+.hbadge.rain .hb-title {
+  color: var(--accent);
+}
+
+.hbadge.rain .hb-sub {
+  color: var(--ink-2);
+}
+
+@media (max-width: 640px) {
+  .hero-main {
+    flex-direction: column;
+    gap: 14px;
+  }
+
+  .hero-id {
+    flex-direction: column;
+    gap: 6px;
+    text-align: center;
+  }
+
+  .hero-id .current-icon {
+    font-size: 46px;
+  }
+
+  .hero-id .current-temp {
+    font-size: 64px;
+  }
+
+  .cond-label {
+    font-size: 16px;
+  }
+
+  .hero-cond {
+    padding-top: 0;
+  }
+
+  /* badges span the full card width, matching the stat tiles below */
+  .hero-badges {
+    width: 100%;
+    min-width: 0;
+    max-width: none;
+  }
+
+  .hbadge {
+    text-align: center;
+  }
+
+  .hbadge .hb-title {
+    justify-content: center;
+  }
+
+  .current-head {
+    justify-content: center;
+  }
+}
+
 /* ---------- radar reality check ---------- */
 .reality {
   display: inline-block;
