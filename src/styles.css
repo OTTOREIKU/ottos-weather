@@ -1692,14 +1692,20 @@ button.item:hover {
     max-width: none;
   }
 
+  /* keep Forecast/Radar and refresh/Auto on one row; toolbar hugs the right */
   .toolbar {
-    flex-basis: 100%;
+    margin-left: auto;
     justify-content: flex-end;
   }
 
   /* drop the "updated x ago" text on mobile so the buttons stay aligned */
   .updated {
     display: none;
+  }
+
+  /* trim so all four controls fit one row on narrow phones */
+  .tabs button {
+    padding: 0 14px;
   }
 
   .score-row {
