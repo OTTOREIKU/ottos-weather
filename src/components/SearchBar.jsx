@@ -85,7 +85,7 @@ export default function SearchBar({ onPick, onGeolocate }) {
           onChange={(e) => setQuery(e.target.value)}
           onKeyDown={onKeyDown}
           onFocus={() => results.length && setOpen(true)}
-          placeholder="Search a city, or paste 35.78, -78.64…"
+          placeholder="Search a city or coordinates"
           aria-label="Search location"
         />
         <button className="icon-btn" title="Use my location" onClick={onGeolocate}>
