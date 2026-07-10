@@ -1,6 +1,279 @@
 {
-  "updatedAt": "2026-07-09",
+  "updatedAt": "2026-07-10",
   "rainThresholdMm": 1,
-  "models": {},
-  "locations": {}
+  "models": {
+    "ecmwf_ifs025": {
+      "nT": 1,
+      "sumErr": 1.25,
+      "sumBiasHi": 2.1999999999999993,
+      "sumBiasLo": 0.3000000000000007,
+      "rain": {
+        "hit": 0,
+        "miss": 0,
+        "fa": 1,
+        "cn": 0
+      },
+      "byLead": {
+        "1": {
+          "nT": 1,
+          "sumErr": 1.25,
+          "sumBiasHi": 2.1999999999999993,
+          "sumBiasLo": 0.3000000000000007,
+          "rain": {
+            "hit": 0,
+            "miss": 0,
+            "fa": 1,
+            "cn": 0
+          }
+        }
+      }
+    },
+    "gfs_seamless": {
+      "nT": 1,
+      "sumErr": 0.8000000000000007,
+      "sumBiasHi": -1.1999999999999993,
+      "sumBiasLo": -0.40000000000000213,
+      "rain": {
+        "hit": 0,
+        "miss": 0,
+        "fa": 0,
+        "cn": 1
+      },
+      "byLead": {
+        "1": {
+          "nT": 1,
+          "sumErr": 0.8000000000000007,
+          "sumBiasHi": -1.1999999999999993,
+          "sumBiasLo": -0.40000000000000213,
+          "rain": {
+            "hit": 0,
+            "miss": 0,
+            "fa": 0,
+            "cn": 1
+          }
+        }
+      }
+    },
+    "icon_seamless": {
+      "nT": 1,
+      "sumErr": 1.1000000000000014,
+      "sumBiasHi": 1.9000000000000021,
+      "sumBiasLo": 0.3000000000000007,
+      "rain": {
+        "hit": 0,
+        "miss": 0,
+        "fa": 1,
+        "cn": 0
+      },
+      "byLead": {
+        "1": {
+          "nT": 1,
+          "sumErr": 1.1000000000000014,
+          "sumBiasHi": 1.9000000000000021,
+          "sumBiasLo": 0.3000000000000007,
+          "rain": {
+            "hit": 0,
+            "miss": 0,
+            "fa": 1,
+            "cn": 0
+          }
+        }
+      }
+    },
+    "meteofrance_seamless": {
+      "nT": 1,
+      "sumErr": 1.799999999999999,
+      "sumBiasHi": -1.0999999999999979,
+      "sumBiasLo": 2.5,
+      "rain": {
+        "hit": 0,
+        "miss": 0,
+        "fa": 1,
+        "cn": 0
+      },
+      "byLead": {
+        "1": {
+          "nT": 1,
+          "sumErr": 1.799999999999999,
+          "sumBiasHi": -1.0999999999999979,
+          "sumBiasLo": 2.5,
+          "rain": {
+            "hit": 0,
+            "miss": 0,
+            "fa": 1,
+            "cn": 0
+          }
+        }
+      }
+    },
+    "ukmo_seamless": {
+      "nT": 1,
+      "sumErr": 1.0999999999999996,
+      "sumBiasHi": 0.5,
+      "sumBiasLo": 1.6999999999999993,
+      "rain": {
+        "hit": 0,
+        "miss": 0,
+        "fa": 1,
+        "cn": 0
+      },
+      "byLead": {
+        "1": {
+          "nT": 1,
+          "sumErr": 1.0999999999999996,
+          "sumBiasHi": 0.5,
+          "sumBiasLo": 1.6999999999999993,
+          "rain": {
+            "hit": 0,
+            "miss": 0,
+            "fa": 1,
+            "cn": 0
+          }
+        }
+      }
+    },
+    "jma_seamless": {
+      "nT": 1,
+      "sumErr": 1.4999999999999982,
+      "sumBiasHi": -2.099999999999998,
+      "sumBiasLo": 0.8999999999999986,
+      "rain": {
+        "hit": 0,
+        "miss": 0,
+        "fa": 1,
+        "cn": 0
+      },
+      "byLead": {
+        "1": {
+          "nT": 1,
+          "sumErr": 1.4999999999999982,
+          "sumBiasHi": -2.099999999999998,
+          "sumBiasLo": 0.8999999999999986,
+          "rain": {
+            "hit": 0,
+            "miss": 0,
+            "fa": 1,
+            "cn": 0
+          }
+        }
+      }
+    },
+    "gem_seamless": {
+      "nT": 1,
+      "sumErr": 1.8500000000000014,
+      "sumBiasHi": 3.5000000000000036,
+      "sumBiasLo": 0.1999999999999993,
+      "rain": {
+        "hit": 0,
+        "miss": 0,
+        "fa": 1,
+        "cn": 0
+      },
+      "byLead": {
+        "1": {
+          "nT": 1,
+          "sumErr": 1.8500000000000014,
+          "sumBiasHi": 3.5000000000000036,
+          "sumBiasLo": 0.1999999999999993,
+          "rain": {
+            "hit": 0,
+            "miss": 0,
+            "fa": 1,
+            "cn": 0
+          }
+        }
+      }
+    }
+  },
+  "locations": {
+    "35.78,-78.64": {
+      "name": "Raleigh",
+      "models": {
+        "ecmwf_ifs025": {
+          "nT": 1,
+          "sumErr": 1.25,
+          "sumBiasHi": 2.1999999999999993,
+          "sumBiasLo": 0.3000000000000007,
+          "rain": {
+            "hit": 0,
+            "miss": 0,
+            "fa": 1,
+            "cn": 0
+          }
+        },
+        "gfs_seamless": {
+          "nT": 1,
+          "sumErr": 0.8000000000000007,
+          "sumBiasHi": -1.1999999999999993,
+          "sumBiasLo": -0.40000000000000213,
+          "rain": {
+            "hit": 0,
+            "miss": 0,
+            "fa": 0,
+            "cn": 1
+          }
+        },
+        "icon_seamless": {
+          "nT": 1,
+          "sumErr": 1.1000000000000014,
+          "sumBiasHi": 1.9000000000000021,
+          "sumBiasLo": 0.3000000000000007,
+          "rain": {
+            "hit": 0,
+            "miss": 0,
+            "fa": 1,
+            "cn": 0
+          }
+        },
+        "meteofrance_seamless": {
+          "nT": 1,
+          "sumErr": 1.799999999999999,
+          "sumBiasHi": -1.0999999999999979,
+          "sumBiasLo": 2.5,
+          "rain": {
+            "hit": 0,
+            "miss": 0,
+            "fa": 1,
+            "cn": 0
+          }
+        },
+        "ukmo_seamless": {
+          "nT": 1,
+          "sumErr": 1.0999999999999996,
+          "sumBiasHi": 0.5,
+          "sumBiasLo": 1.6999999999999993,
+          "rain": {
+            "hit": 0,
+            "miss": 0,
+            "fa": 1,
+            "cn": 0
+          }
+        },
+        "jma_seamless": {
+          "nT": 1,
+          "sumErr": 1.4999999999999982,
+          "sumBiasHi": -2.099999999999998,
+          "sumBiasLo": 0.8999999999999986,
+          "rain": {
+            "hit": 0,
+            "miss": 0,
+            "fa": 1,
+            "cn": 0
+          }
+        },
+        "gem_seamless": {
+          "nT": 1,
+          "sumErr": 1.8500000000000014,
+          "sumBiasHi": 3.5000000000000036,
+          "sumBiasLo": 0.1999999999999993,
+          "rain": {
+            "hit": 0,
+            "miss": 0,
+            "fa": 1,
+            "cn": 0
+          }
+        }
+      }
+    }
+  }
 }
