@@ -1,50 +1,74 @@
 {
-  "updatedAt": "2026-07-10",
+  "updatedAt": "2026-07-11",
   "rainThresholdMm": 1,
   "models": {
     "ecmwf_ifs025": {
-      "nT": 1,
-      "sumErr": 1.25,
-      "sumBiasHi": 2.1999999999999993,
-      "sumBiasLo": 0.3000000000000007,
+      "nT": 3,
+      "sumErr": 3.950000000000003,
+      "sumBiasHi": -1.4000000000000092,
+      "sumBiasLo": 2.099999999999998,
       "rain": {
         "hit": 0,
         "miss": 0,
-        "fa": 1,
-        "cn": 0
+        "fa": 2,
+        "cn": 1
       },
       "byLead": {
         "1": {
-          "nT": 1,
-          "sumErr": 1.25,
-          "sumBiasHi": 2.1999999999999993,
-          "sumBiasLo": 0.3000000000000007,
+          "nT": 2,
+          "sumErr": 2.8000000000000025,
+          "sumBiasHi": -0.2000000000000064,
+          "sumBiasLo": 1,
           "rain": {
             "hit": 0,
             "miss": 0,
-            "fa": 1,
+            "fa": 2,
             "cn": 0
+          }
+        },
+        "2": {
+          "nT": 1,
+          "sumErr": 1.1500000000000004,
+          "sumBiasHi": -1.2000000000000028,
+          "sumBiasLo": 1.0999999999999979,
+          "rain": {
+            "hit": 0,
+            "miss": 0,
+            "fa": 0,
+            "cn": 1
           }
         }
       }
     },
     "gfs_seamless": {
-      "nT": 1,
-      "sumErr": 0.8000000000000007,
-      "sumBiasHi": -1.1999999999999993,
-      "sumBiasLo": -0.40000000000000213,
+      "nT": 3,
+      "sumErr": 1.9500000000000028,
+      "sumBiasHi": -3.100000000000005,
+      "sumBiasLo": -3.552713678800501e-15,
       "rain": {
         "hit": 0,
         "miss": 0,
         "fa": 0,
-        "cn": 1
+        "cn": 3
       },
       "byLead": {
         "1": {
+          "nT": 2,
+          "sumErr": 1.2500000000000018,
+          "sumBiasHi": -1.8000000000000007,
+          "sumBiasLo": -0.10000000000000142,
+          "rain": {
+            "hit": 0,
+            "miss": 0,
+            "fa": 0,
+            "cn": 2
+          }
+        },
+        "2": {
           "nT": 1,
-          "sumErr": 0.8000000000000007,
-          "sumBiasHi": -1.1999999999999993,
-          "sumBiasLo": -0.40000000000000213,
+          "sumErr": 0.7000000000000011,
+          "sumBiasHi": -1.3000000000000043,
+          "sumBiasLo": 0.09999999999999787,
           "rain": {
             "hit": 0,
             "miss": 0,
@@ -55,100 +79,148 @@
       }
     },
     "icon_seamless": {
-      "nT": 1,
-      "sumErr": 1.1000000000000014,
-      "sumBiasHi": 1.9000000000000021,
-      "sumBiasLo": 0.3000000000000007,
-      "rain": {
-        "hit": 0,
-        "miss": 0,
-        "fa": 1,
-        "cn": 0
-      },
-      "byLead": {
-        "1": {
-          "nT": 1,
-          "sumErr": 1.1000000000000014,
-          "sumBiasHi": 1.9000000000000021,
-          "sumBiasLo": 0.3000000000000007,
-          "rain": {
-            "hit": 0,
-            "miss": 0,
-            "fa": 1,
-            "cn": 0
-          }
-        }
-      }
-    },
-    "meteofrance_seamless": {
-      "nT": 1,
-      "sumErr": 1.799999999999999,
-      "sumBiasHi": -1.0999999999999979,
+      "nT": 3,
+      "sumErr": 2.8000000000000025,
+      "sumBiasHi": 0.6999999999999993,
       "sumBiasLo": 2.5,
       "rain": {
         "hit": 0,
         "miss": 0,
         "fa": 1,
-        "cn": 0
+        "cn": 2
       },
       "byLead": {
         "1": {
-          "nT": 1,
-          "sumErr": 1.799999999999999,
-          "sumBiasHi": -1.0999999999999979,
-          "sumBiasLo": 2.5,
+          "nT": 2,
+          "sumErr": 2.450000000000003,
+          "sumBiasHi": 0.6999999999999993,
+          "sumBiasLo": 1.8000000000000007,
           "rain": {
             "hit": 0,
             "miss": 0,
             "fa": 1,
+            "cn": 1
+          }
+        },
+        "2": {
+          "nT": 1,
+          "sumErr": 0.34999999999999964,
+          "sumBiasHi": 0,
+          "sumBiasLo": 0.6999999999999993,
+          "rain": {
+            "hit": 0,
+            "miss": 0,
+            "fa": 0,
+            "cn": 1
+          }
+        }
+      }
+    },
+    "meteofrance_seamless": {
+      "nT": 3,
+      "sumErr": 7.3000000000000025,
+      "sumBiasHi": -6.0000000000000036,
+      "sumBiasLo": 8.600000000000001,
+      "rain": {
+        "hit": 0,
+        "miss": 0,
+        "fa": 2,
+        "cn": 1
+      },
+      "byLead": {
+        "1": {
+          "nT": 2,
+          "sumErr": 4.449999999999999,
+          "sumBiasHi": -3.099999999999998,
+          "sumBiasLo": 5.800000000000001,
+          "rain": {
+            "hit": 0,
+            "miss": 0,
+            "fa": 2,
             "cn": 0
+          }
+        },
+        "2": {
+          "nT": 1,
+          "sumErr": 2.850000000000003,
+          "sumBiasHi": -2.9000000000000057,
+          "sumBiasLo": 2.8000000000000007,
+          "rain": {
+            "hit": 0,
+            "miss": 0,
+            "fa": 0,
+            "cn": 1
           }
         }
       }
     },
     "ukmo_seamless": {
-      "nT": 1,
-      "sumErr": 1.0999999999999996,
-      "sumBiasHi": 0.5,
-      "sumBiasLo": 1.6999999999999993,
+      "nT": 3,
+      "sumErr": 4.350000000000001,
+      "sumBiasHi": -0.4000000000000057,
+      "sumBiasLo": 7.299999999999997,
       "rain": {
         "hit": 0,
         "miss": 0,
         "fa": 1,
-        "cn": 0
+        "cn": 2
       },
       "byLead": {
         "1": {
-          "nT": 1,
-          "sumErr": 1.0999999999999996,
-          "sumBiasHi": 0.5,
-          "sumBiasLo": 1.6999999999999993,
+          "nT": 2,
+          "sumErr": 2.75,
+          "sumBiasHi": -0.10000000000000142,
+          "sumBiasLo": 4.399999999999999,
           "rain": {
             "hit": 0,
             "miss": 0,
             "fa": 1,
-            "cn": 0
+            "cn": 1
+          }
+        },
+        "2": {
+          "nT": 1,
+          "sumErr": 1.6000000000000014,
+          "sumBiasHi": -0.30000000000000426,
+          "sumBiasLo": 2.8999999999999986,
+          "rain": {
+            "hit": 0,
+            "miss": 0,
+            "fa": 0,
+            "cn": 1
           }
         }
       }
     },
     "jma_seamless": {
-      "nT": 1,
-      "sumErr": 1.4999999999999982,
-      "sumBiasHi": -2.099999999999998,
-      "sumBiasLo": 0.8999999999999986,
+      "nT": 3,
+      "sumErr": 7.800000000000001,
+      "sumBiasHi": -10.600000000000005,
+      "sumBiasLo": 4.9999999999999964,
       "rain": {
         "hit": 0,
         "miss": 0,
-        "fa": 1,
+        "fa": 3,
         "cn": 0
       },
       "byLead": {
         "1": {
+          "nT": 2,
+          "sumErr": 4.549999999999999,
+          "sumBiasHi": -6.300000000000001,
+          "sumBiasLo": 2.799999999999997,
+          "rain": {
+            "hit": 0,
+            "miss": 0,
+            "fa": 2,
+            "cn": 0
+          }
+        },
+        "2": {
           "nT": 1,
-          "sumErr": 1.4999999999999982,
-          "sumBiasHi": -2.099999999999998,
-          "sumBiasLo": 0.8999999999999986,
+          "sumErr": 3.2500000000000018,
+          "sumBiasHi": -4.300000000000004,
+          "sumBiasLo": 2.1999999999999993,
           "rain": {
             "hit": 0,
             "miss": 0,
@@ -159,10 +231,48 @@
       }
     },
     "gem_seamless": {
+      "nT": 3,
+      "sumErr": 4.450000000000003,
+      "sumBiasHi": 1.899999999999995,
+      "sumBiasLo": 3.1999999999999993,
+      "rain": {
+        "hit": 0,
+        "miss": 0,
+        "fa": 1,
+        "cn": 2
+      },
+      "byLead": {
+        "1": {
+          "nT": 2,
+          "sumErr": 2.9000000000000004,
+          "sumBiasHi": 3.8000000000000007,
+          "sumBiasLo": 2,
+          "rain": {
+            "hit": 0,
+            "miss": 0,
+            "fa": 1,
+            "cn": 1
+          }
+        },
+        "2": {
+          "nT": 1,
+          "sumErr": 1.5500000000000025,
+          "sumBiasHi": -1.9000000000000057,
+          "sumBiasLo": 1.1999999999999993,
+          "rain": {
+            "hit": 0,
+            "miss": 0,
+            "fa": 0,
+            "cn": 1
+          }
+        }
+      }
+    },
+    "cma_grapes_global": {
       "nT": 1,
-      "sumErr": 1.8500000000000014,
-      "sumBiasHi": 3.5000000000000036,
-      "sumBiasLo": 0.1999999999999993,
+      "sumErr": 2.2499999999999964,
+      "sumBiasHi": 2.0999999999999943,
+      "sumBiasLo": 2.3999999999999986,
       "rain": {
         "hit": 0,
         "miss": 0,
@@ -172,9 +282,9 @@
       "byLead": {
         "1": {
           "nT": 1,
-          "sumErr": 1.8500000000000014,
-          "sumBiasHi": 3.5000000000000036,
-          "sumBiasLo": 0.1999999999999993,
+          "sumErr": 2.2499999999999964,
+          "sumBiasHi": 2.0999999999999943,
+          "sumBiasLo": 2.3999999999999986,
           "rain": {
             "hit": 0,
             "miss": 0,
@@ -190,82 +300,94 @@
       "name": "Raleigh",
       "models": {
         "ecmwf_ifs025": {
-          "nT": 1,
-          "sumErr": 1.25,
-          "sumBiasHi": 2.1999999999999993,
-          "sumBiasLo": 0.3000000000000007,
+          "nT": 3,
+          "sumErr": 3.950000000000003,
+          "sumBiasHi": -1.4000000000000092,
+          "sumBiasLo": 2.099999999999998,
           "rain": {
             "hit": 0,
             "miss": 0,
-            "fa": 1,
-            "cn": 0
+            "fa": 2,
+            "cn": 1
           }
         },
         "gfs_seamless": {
-          "nT": 1,
-          "sumErr": 0.8000000000000007,
-          "sumBiasHi": -1.1999999999999993,
-          "sumBiasLo": -0.40000000000000213,
+          "nT": 3,
+          "sumErr": 1.9500000000000028,
+          "sumBiasHi": -3.100000000000005,
+          "sumBiasLo": -3.552713678800501e-15,
           "rain": {
             "hit": 0,
             "miss": 0,
             "fa": 0,
-            "cn": 1
+            "cn": 3
           }
         },
         "icon_seamless": {
-          "nT": 1,
-          "sumErr": 1.1000000000000014,
-          "sumBiasHi": 1.9000000000000021,
-          "sumBiasLo": 0.3000000000000007,
-          "rain": {
-            "hit": 0,
-            "miss": 0,
-            "fa": 1,
-            "cn": 0
-          }
-        },
-        "meteofrance_seamless": {
-          "nT": 1,
-          "sumErr": 1.799999999999999,
-          "sumBiasHi": -1.0999999999999979,
+          "nT": 3,
+          "sumErr": 2.8000000000000025,
+          "sumBiasHi": 0.6999999999999993,
           "sumBiasLo": 2.5,
           "rain": {
             "hit": 0,
             "miss": 0,
             "fa": 1,
-            "cn": 0
+            "cn": 2
+          }
+        },
+        "meteofrance_seamless": {
+          "nT": 3,
+          "sumErr": 7.3000000000000025,
+          "sumBiasHi": -6.0000000000000036,
+          "sumBiasLo": 8.600000000000001,
+          "rain": {
+            "hit": 0,
+            "miss": 0,
+            "fa": 2,
+            "cn": 1
           }
         },
         "ukmo_seamless": {
-          "nT": 1,
-          "sumErr": 1.0999999999999996,
-          "sumBiasHi": 0.5,
-          "sumBiasLo": 1.6999999999999993,
+          "nT": 3,
+          "sumErr": 4.350000000000001,
+          "sumBiasHi": -0.4000000000000057,
+          "sumBiasLo": 7.299999999999997,
           "rain": {
             "hit": 0,
             "miss": 0,
             "fa": 1,
-            "cn": 0
+            "cn": 2
           }
         },
         "jma_seamless": {
-          "nT": 1,
-          "sumErr": 1.4999999999999982,
-          "sumBiasHi": -2.099999999999998,
-          "sumBiasLo": 0.8999999999999986,
+          "nT": 3,
+          "sumErr": 7.800000000000001,
+          "sumBiasHi": -10.600000000000005,
+          "sumBiasLo": 4.9999999999999964,
           "rain": {
             "hit": 0,
             "miss": 0,
-            "fa": 1,
+            "fa": 3,
             "cn": 0
           }
         },
         "gem_seamless": {
+          "nT": 3,
+          "sumErr": 4.450000000000003,
+          "sumBiasHi": 1.899999999999995,
+          "sumBiasLo": 3.1999999999999993,
+          "rain": {
+            "hit": 0,
+            "miss": 0,
+            "fa": 1,
+            "cn": 2
+          }
+        },
+        "cma_grapes_global": {
           "nT": 1,
-          "sumErr": 1.8500000000000014,
-          "sumBiasHi": 3.5000000000000036,
-          "sumBiasLo": 0.1999999999999993,
+          "sumErr": 2.2499999999999964,
+          "sumBiasHi": 2.0999999999999943,
+          "sumBiasLo": 2.3999999999999986,
           "rain": {
             "hit": 0,
             "miss": 0,
