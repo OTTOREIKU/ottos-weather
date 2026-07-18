@@ -151,10 +151,13 @@ export function selectScope(scores, locKey, minDays = 14) {
 }
 
 // Turn accuracy scores into normalized mean-weights. Models with at least
-// minDays of verified forecasts get 1/(0.5 + MAE°C); models still accumulating
-// data (e.g. newly added ones) get a neutral average weight so they neither
-// stall the system nor skew it. Needs MIN_SCORED_MODELS scored models to
-// activate at all.
+// minDays of verified forecasts get inverse-variance weight 1/MAE² (the
+// principled way to blend estimators of differing accuracy: a model with half
+// the error carries ~4x the weight, so consistently-accurate models genuinely
+// rise). MAE is floored at 0.3°C so one lucky model can't dominate. Models
+// still accumulating data (e.g. newly added ones) get a neutral average weight
+// so they neither stall the system nor skew it. Needs MIN_SCORED_MODELS scored
+// models to activate at all.
 export function weightsFromScores(models, modelIds, minDays = 14) {
   if (!models) return null
   const raw = {}
@@ -162,7 +165,8 @@ export function weightsFromScores(models, modelIds, minDays = 14) {
   for (const id of modelIds) {
     const m = models[id]
     if (m && m.nT >= minDays) {
-      raw[id] = 1 / (0.5 + m.sumErr / m.nT)
+      const mae = Math.max(0.3, m.sumErr / m.nT)
+      raw[id] = 1 / (mae * mae)
       scored.push(id)
     }
   }
