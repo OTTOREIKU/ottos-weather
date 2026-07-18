@@ -105,6 +105,36 @@ async function pirateDaily(loc, key) {
   return out
 }
 
+// ---- user API keys come from the private settings repo (the same
+// settings.json the app's device-sync maintains), read with the sync PAT set
+// as the single SETTINGS_REPO_TOKEN secret. Keys therefore live in ONE place:
+// rotate them in the app and the collector follows automatically. Explicit
+// OPENWEATHER_API_KEY / PIRATEWEATHER_API_KEY secrets still win if set.
+async function loadSettingsKeys() {
+  const token = process.env.SETTINGS_REPO_TOKEN
+  if (!token) return {}
+  try {
+    const res = await fetch('https://api.github.com/repos/OTTOREIKU/weather-settings/contents/settings.json', {
+      headers: { Authorization: `Bearer ${token}`, Accept: 'application/vnd.github+json' },
+    })
+    if (!res.ok) throw new Error(`settings repo read failed (${res.status})`)
+    const j = await res.json()
+    const s = JSON.parse(Buffer.from(j.content, 'base64').toString('utf8'))
+    return {
+      openweather: s?.sources?.openweather?.key || null,
+      pirate: s?.sources?.pirate?.key || null,
+    }
+  } catch (e) {
+    console.error(`settings keys unavailable: ${e.message}`)
+    return {}
+  }
+}
+
+const remoteKeys = await loadSettingsKeys()
+const OWM_KEY = process.env.OPENWEATHER_API_KEY || remoteKeys.openweather
+const PIRATE_KEY = process.env.PIRATEWEATHER_API_KEY || remoteKeys.pirate
+console.log(`extra source keys: openweather=${!!OWM_KEY} pirate=${!!PIRATE_KEY}`)
+
 const locations = read('public/data/locations.json', [])
 const log = read('public/data/log.json', {})
 const scores = read('public/data/scores.json', { models: {} })
@@ -136,16 +166,16 @@ for (const loc of locations) {
     } catch (e) {
       console.error(`nws snapshot failed: ${loc.name}: ${e.message}`)
     }
-    if (process.env.OPENWEATHER_API_KEY) {
+    if (OWM_KEY) {
       try {
-        extras.openweather = await owmDaily(loc, process.env.OPENWEATHER_API_KEY)
+        extras.openweather = await owmDaily(loc, OWM_KEY)
       } catch (e) {
         console.error(`openweather snapshot failed: ${loc.name}: ${e.message}`)
       }
     }
-    if (process.env.PIRATEWEATHER_API_KEY) {
+    if (PIRATE_KEY) {
       try {
-        extras.pirate = await pirateDaily(loc, process.env.PIRATEWEATHER_API_KEY)
+        extras.pirate = await pirateDaily(loc, PIRATE_KEY)
       } catch (e) {
         console.error(`pirate snapshot failed: ${loc.name}: ${e.message}`)
       }
