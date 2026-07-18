@@ -55,6 +55,21 @@ function analyzeRainSoon(minutely) {
   return '🌧 Rain continuing for the next 2+ hours'
 }
 
+// great-circle distance for the "is this near a scored location?" check
+function distKm(a, b) {
+  const R = 6371
+  const toR = (d) => (d * Math.PI) / 180
+  const dLat = toR(b.lat - a.lat)
+  const dLon = toR(b.lon - a.lon)
+  const s =
+    Math.sin(dLat / 2) ** 2 + Math.cos(toR(a.lat)) * Math.cos(toR(b.lat)) * Math.sin(dLon / 2) ** 2
+  return 2 * R * Math.asin(Math.sqrt(s))
+}
+
+// accuracy features only make sense near a location the collector actually
+// verifies; beyond this radius the scorecard hides and weighting stays off
+const NEAR_TRACKED_KM = 75
+
 function agoLabel(ts) {
   if (!ts) return ''
   const mins = Math.floor((Date.now() - ts) / 60000)
@@ -77,6 +92,7 @@ export default function App() {
   const [weighting, setWeighting] = useState(() => storage.loadSetting('weighting', true))
   const [biasCorrect, setBiasCorrect] = useState(() => storage.loadSetting('biascorrect', true))
   const [scores, setScores] = useState(null)
+  const [tracked, setTracked] = useState(null) // collector-scored locations
   const [alerts, setAlerts] = useState([])
   const [rainSoon, setRainSoon] = useState(null)
   const [details, setDetails] = useState(null)
@@ -218,6 +234,10 @@ export default function App() {
       .then((r) => (r.ok ? r.json() : null))
       .then(setScores)
       .catch(() => setScores(null))
+    fetch(`${import.meta.env.BASE_URL}data/locations.json`)
+      .then((r) => (r.ok ? r.json() : null))
+      .then(setTracked)
+      .catch(() => setTracked(null))
   }, [])
 
   // auto refresh + "updated x ago" ticker
@@ -298,11 +318,20 @@ export default function App() {
     return idx
   }, [data, updatedAt])
 
+  // accuracy features apply only near a collector-scored location: pooled
+  // scores are learned where we verify, and shouldn't steer a forecast for
+  // somewhere unrelated (searching California gets the plain mean, no scorecard)
+  const nearTracked = useMemo(() => {
+    if (!location) return false
+    if (!tracked?.length) return true // locations list unavailable: keep old behavior
+    return tracked.some((t) => distKm(t, location) <= NEAR_TRACKED_KM)
+  }, [tracked, location])
+
   // accuracy weights + learned bias corrections kick in once enough models
   // have 14+ verified days; location-specific scores win over pooled ones
   const scope = useMemo(
-    () => (location ? selectScope(scores, storage.locationKey(location)) : null),
-    [scores, location],
+    () => (location && nearTracked ? selectScope(scores, storage.locationKey(location)) : null),
+    [scores, location, nearTracked],
   )
   const modelIds = useMemo(() => ALL_MODELS.map((m) => m.id), [])
   const weights = useMemo(
@@ -416,17 +445,19 @@ export default function App() {
             }
           />
           <DailySection data={data} units={units} weights={weights} bias={bias} nowIndex={nowIndex} />
-          <Scorecard
-            scores={scores}
-            units={units}
-            weighting={weighting}
-            onToggleWeighting={toggleWeighting}
-            weightsActive={!!weights}
-            biasCorrect={biasCorrect}
-            onToggleBias={toggleBias}
-            biasActive={!!bias}
-            scope={scope?.scope}
-          />
+          {nearTracked && (
+            <Scorecard
+              scores={scores}
+              units={units}
+              weighting={weighting}
+              onToggleWeighting={toggleWeighting}
+              weightsActive={!!weights}
+              biasCorrect={biasCorrect}
+              onToggleBias={toggleBias}
+              biasActive={!!bias}
+              scope={scope?.scope}
+            />
+          )}
           <SourcesPanel
             settings={sources}
             onChange={changeSources}

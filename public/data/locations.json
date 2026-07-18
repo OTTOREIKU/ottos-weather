@@ -1,3 +1,5 @@
 [
-  { "name": "Raleigh", "lat": 35.7796, "lon": -78.6382 }
+  { "name": "Raleigh", "lat": 35.7796, "lon": -78.6382 },
+  { "name": "Charlotte", "lat": 35.22709, "lon": -80.84313 },
+  { "name": "White Lake", "lat": 42.6917, "lon": -83.55411 }
 ]
