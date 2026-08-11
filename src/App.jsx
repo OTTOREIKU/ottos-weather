@@ -462,6 +462,7 @@ export default function App() {
             settings={sources}
             onChange={changeSources}
             status={sourceStatus}
+            keyStatus={scores?.keyStatus}
             syncToken={syncToken}
             syncStatus={syncStatus}
             onConnect={connectSync}

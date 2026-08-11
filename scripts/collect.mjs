@@ -110,6 +110,7 @@ async function pirateDaily(loc, key) {
 // as the single SETTINGS_REPO_TOKEN secret. Keys therefore live in ONE place:
 // rotate them in the app and the collector follows automatically. Explicit
 // OPENWEATHER_API_KEY / PIRATEWEATHER_API_KEY secrets still win if set.
+let settingsTokenOk = false
 async function loadSettingsKeys() {
   const token = process.env.SETTINGS_REPO_TOKEN
   if (!token) return {}
@@ -120,6 +121,7 @@ async function loadSettingsKeys() {
     if (!res.ok) throw new Error(`settings repo read failed (${res.status})`)
     const j = await res.json()
     const s = JSON.parse(Buffer.from(j.content, 'base64').toString('utf8'))
+    settingsTokenOk = true
     return {
       openweather: s?.sources?.openweather?.key || null,
       pirate: s?.sources?.pirate?.key || null,
@@ -353,6 +355,14 @@ for (const [key, entry] of Object.entries(log)) {
 }
 
 scores.updatedAt = today
+// surfaced by the app's sources panel so an expired sync PAT (or missing keys)
+// gets noticed instead of OWM/Pirate silently dropping out of the scoring
+scores.keyStatus = {
+  checkedAt: today,
+  settingsToken: settingsTokenOk,
+  openweather: !!OWM_KEY,
+  pirate: !!PIRATE_KEY,
+}
 writeFileSync('public/data/log.json', JSON.stringify(log, null, 2))
 writeFileSync('public/data/scores.json', JSON.stringify(scores, null, 2))
 console.log(`done: ${Object.keys(log).length} log entries, ${Object.keys(scores.models).length} scored models`)

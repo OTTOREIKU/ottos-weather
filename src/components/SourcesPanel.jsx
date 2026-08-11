@@ -4,7 +4,15 @@ import { callCounts } from '../lib/storage.js'
 
 // Manage optional forecast sources and watch this device's API usage.
 // Keyed services get a client-side budget so free tiers can't be blown past.
-export default function SourcesPanel({ settings, onChange, status = {}, syncToken, syncStatus, onConnect, onDisconnect }) {
+export default function SourcesPanel({ settings, onChange, status = {}, keyStatus, syncToken, syncStatus, onConnect, onDisconnect }) {
+  // the nightly collector reports whether it could read the synced keys; a
+  // false settingsToken usually means the sync PAT expired
+  const collectorWarning =
+    keyStatus && keyStatus.settingsToken === false
+      ? `The accuracy collector couldn't read your synced keys (checked ${keyStatus.checkedAt}). ` +
+        'Your sync token has likely expired: create a fresh fine-grained token for the settings ' +
+        'repo and update the SETTINGS_REPO_TOKEN secret in the ottos-weather repo.'
+      : null
   const [open, setOpen] = useState(false)
   const [keys, setKeys] = useState({
     openweather: settings.openweather?.key || '',
@@ -25,6 +33,7 @@ export default function SourcesPanel({ settings, onChange, status = {}, syncToke
       </button>
       {open && (
         <div className="panel-body">
+          {collectorWarning && <div className="collector-warn">⚠ {collectorWarning}</div>}
           <div className="source-row">
             <span className="src-name">Open-Meteo</span>
             <span className="src-note">8 global models · always on · free 10k/day</span>
