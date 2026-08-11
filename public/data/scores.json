@@ -1013,5 +1013,11 @@
         }
       }
     }
+  },
+  "keyStatus": {
+    "checkedAt": "2026-08-11",
+    "settingsToken": true,
+    "openweather": true,
+    "pirate": true
   }
 }
