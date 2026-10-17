@@ -1,5 +1,5 @@
 {
-  "updatedAt": "2026-10-16",
+  "updatedAt": "2026-10-17",
   "rainThresholdMm": 1,
   "models": {
     "ecmwf_ifs025": {
@@ -1015,7 +1015,7 @@
     }
   },
   "keyStatus": {
-    "checkedAt": "2026-10-16",
+    "checkedAt": "2026-10-17",
     "settingsToken": true,
     "openweather": true,
     "pirate": true
