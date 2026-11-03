@@ -737,6 +737,78 @@
             "cn": 200
           }
         }
+      },
+      "recent": {
+        "windowDays": 30,
+        "from": "2026-10-02",
+        "models": {
+          "ecmwf_ifs025": {
+            "nT": 93,
+            "sumErr": 192.5499999999999,
+            "sumBiasHi": -117.49999999999999,
+            "sumBiasLo": 187.19999999999996
+          },
+          "gfs_seamless": {
+            "nT": 93,
+            "sumErr": 175.8,
+            "sumBiasHi": -16.499999999999996,
+            "sumBiasLo": 223.09999999999994
+          },
+          "icon_seamless": {
+            "nT": 93,
+            "sumErr": 114.05000000000003,
+            "sumBiasHi": -72.29999999999997,
+            "sumBiasLo": 30.400000000000002
+          },
+          "meteofrance_seamless": {
+            "nT": 93,
+            "sumErr": 204.5,
+            "sumBiasHi": 14.599999999999989,
+            "sumBiasLo": 263.2
+          },
+          "ukmo_seamless": {
+            "nT": 93,
+            "sumErr": 199.50000000000009,
+            "sumBiasHi": -137.10000000000002,
+            "sumBiasLo": 217.70000000000002
+          },
+          "jma_seamless": {
+            "nT": 93,
+            "sumErr": 153.95000000000002,
+            "sumBiasHi": -75.69999999999999,
+            "sumBiasLo": 152.00000000000009
+          },
+          "gem_seamless": {
+            "nT": 93,
+            "sumErr": 138.4,
+            "sumBiasHi": -47.60000000000001,
+            "sumBiasLo": 88.19999999999999
+          },
+          "cma_grapes_global": {
+            "nT": 93,
+            "sumErr": 164.60000000000008,
+            "sumBiasHi": -136.50000000000006,
+            "sumBiasLo": 132.29999999999995
+          },
+          "nws": {
+            "nT": 93,
+            "sumErr": 124.95000000000007,
+            "sumBiasHi": -35.4,
+            "sumBiasLo": 132.69999999999996
+          },
+          "openweather": {
+            "nT": 93,
+            "sumErr": 194.75499999999994,
+            "sumBiasHi": -125.47000000000004,
+            "sumBiasLo": 154.82
+          },
+          "pirate": {
+            "nT": 93,
+            "sumErr": 163.44500000000002,
+            "sumBiasHi": -76.71000000000001,
+            "sumBiasLo": 207.17999999999995
+          }
+        }
       }
     },
     "35.23,-80.84": {
@@ -872,6 +944,78 @@
             "miss": 3,
             "fa": 70,
             "cn": 209
+          }
+        }
+      },
+      "recent": {
+        "windowDays": 30,
+        "from": "2026-10-02",
+        "models": {
+          "ecmwf_ifs025": {
+            "nT": 93,
+            "sumErr": 170.5,
+            "sumBiasHi": -79.09999999999995,
+            "sumBiasLo": 177.89999999999995
+          },
+          "gfs_seamless": {
+            "nT": 93,
+            "sumErr": 156.9,
+            "sumBiasHi": -14.89999999999998,
+            "sumBiasLo": 161.29999999999998
+          },
+          "icon_seamless": {
+            "nT": 93,
+            "sumErr": 119.15,
+            "sumBiasHi": -88.39999999999995,
+            "sumBiasLo": 20.700000000000017
+          },
+          "meteofrance_seamless": {
+            "nT": 93,
+            "sumErr": 181.50000000000009,
+            "sumBiasHi": -12.399999999999977,
+            "sumBiasLo": 195.00000000000003
+          },
+          "ukmo_seamless": {
+            "nT": 93,
+            "sumErr": 219.9,
+            "sumBiasHi": -142.09999999999994,
+            "sumBiasLo": 261.7
+          },
+          "jma_seamless": {
+            "nT": 93,
+            "sumErr": 160.65,
+            "sumBiasHi": 7.300000000000029,
+            "sumBiasLo": 182.8
+          },
+          "gem_seamless": {
+            "nT": 93,
+            "sumErr": 124.84999999999998,
+            "sumBiasHi": -46.599999999999994,
+            "sumBiasLo": 82.30000000000003
+          },
+          "cma_grapes_global": {
+            "nT": 93,
+            "sumErr": 219.75,
+            "sumBiasHi": -219.9,
+            "sumBiasLo": 184.39999999999998
+          },
+          "nws": {
+            "nT": 93,
+            "sumErr": 117.85,
+            "sumBiasHi": -31.199999999999932,
+            "sumBiasLo": 89.29999999999998
+          },
+          "openweather": {
+            "nT": 93,
+            "sumErr": 171.34,
+            "sumBiasHi": -76.88999999999997,
+            "sumBiasLo": 153.87
+          },
+          "pirate": {
+            "nT": 93,
+            "sumErr": 144.29999999999995,
+            "sumBiasHi": -72.74999999999999,
+            "sumBiasLo": 164.24999999999994
           }
         }
       }
@@ -1011,6 +1155,78 @@
             "cn": 214
           }
         }
+      },
+      "recent": {
+        "windowDays": 30,
+        "from": "2026-10-02",
+        "models": {
+          "ecmwf_ifs025": {
+            "nT": 93,
+            "sumErr": 161.20000000000007,
+            "sumBiasHi": -140.7,
+            "sumBiasLo": 101.29999999999998
+          },
+          "gfs_seamless": {
+            "nT": 93,
+            "sumErr": 115.79999999999997,
+            "sumBiasHi": -66.9,
+            "sumBiasLo": 63.700000000000024
+          },
+          "icon_seamless": {
+            "nT": 93,
+            "sumErr": 138.64999999999998,
+            "sumBiasHi": -92.79999999999998,
+            "sumBiasLo": 95.69999999999999
+          },
+          "meteofrance_seamless": {
+            "nT": 93,
+            "sumErr": 157.9,
+            "sumBiasHi": -62.39999999999999,
+            "sumBiasLo": 121.00000000000001
+          },
+          "ukmo_seamless": {
+            "nT": 93,
+            "sumErr": 214.15000000000003,
+            "sumBiasHi": -177.20000000000005,
+            "sumBiasLo": 211.69999999999996
+          },
+          "jma_seamless": {
+            "nT": 93,
+            "sumErr": 213.74999999999994,
+            "sumBiasHi": -134,
+            "sumBiasLo": 182.10000000000008
+          },
+          "gem_seamless": {
+            "nT": 93,
+            "sumErr": 119.89999999999995,
+            "sumBiasHi": -28.499999999999986,
+            "sumBiasLo": 22.300000000000004
+          },
+          "cma_grapes_global": {
+            "nT": 93,
+            "sumErr": 248.6,
+            "sumBiasHi": -333.6999999999999,
+            "sumBiasLo": 31.900000000000002
+          },
+          "nws": {
+            "nT": 93,
+            "sumErr": 143.24999999999991,
+            "sumBiasHi": -113.60000000000002,
+            "sumBiasLo": -0.3000000000000034
+          },
+          "openweather": {
+            "nT": 93,
+            "sumErr": 164.66999999999996,
+            "sumBiasHi": -119.32000000000005,
+            "sumBiasLo": 74.89999999999998
+          },
+          "pirate": {
+            "nT": 93,
+            "sumErr": 124.16499999999995,
+            "sumBiasHi": -47.37000000000003,
+            "sumBiasLo": 26.78000000000001
+          }
+        }
       }
     }
   },
@@ -1019,5 +1235,77 @@
     "settingsToken": true,
     "openweather": true,
     "pirate": true
+  },
+  "recent": {
+    "windowDays": 30,
+    "from": "2026-10-02",
+    "models": {
+      "ecmwf_ifs025": {
+        "nT": 279,
+        "sumErr": 524.2500000000001,
+        "sumBiasHi": -337.30000000000007,
+        "sumBiasLo": 466.3999999999997
+      },
+      "gfs_seamless": {
+        "nT": 279,
+        "sumErr": 448.5000000000003,
+        "sumBiasHi": -98.3,
+        "sumBiasLo": 448.1000000000002
+      },
+      "icon_seamless": {
+        "nT": 279,
+        "sumErr": 371.8499999999999,
+        "sumBiasHi": -253.50000000000006,
+        "sumBiasLo": 146.79999999999998
+      },
+      "meteofrance_seamless": {
+        "nT": 279,
+        "sumErr": 543.9,
+        "sumBiasHi": -60.19999999999999,
+        "sumBiasLo": 579.2000000000002
+      },
+      "ukmo_seamless": {
+        "nT": 279,
+        "sumErr": 633.5499999999996,
+        "sumBiasHi": -456.40000000000015,
+        "sumBiasLo": 691.0999999999999
+      },
+      "jma_seamless": {
+        "nT": 279,
+        "sumErr": 528.3500000000003,
+        "sumBiasHi": -202.39999999999992,
+        "sumBiasLo": 516.8999999999997
+      },
+      "gem_seamless": {
+        "nT": 279,
+        "sumErr": 383.15000000000015,
+        "sumBiasHi": -122.6999999999999,
+        "sumBiasLo": 192.79999999999995
+      },
+      "cma_grapes_global": {
+        "nT": 279,
+        "sumErr": 632.9499999999999,
+        "sumBiasHi": -690.0999999999999,
+        "sumBiasLo": 348.59999999999985
+      },
+      "nws": {
+        "nT": 279,
+        "sumErr": 386.0500000000003,
+        "sumBiasHi": -180.20000000000022,
+        "sumBiasLo": 221.7000000000001
+      },
+      "openweather": {
+        "nT": 279,
+        "sumErr": 530.7649999999999,
+        "sumBiasHi": -321.6799999999999,
+        "sumBiasLo": 383.5899999999999
+      },
+      "pirate": {
+        "nT": 279,
+        "sumErr": 431.90999999999997,
+        "sumBiasHi": -196.83,
+        "sumBiasLo": 398.21000000000004
+      }
+    }
   }
 }
