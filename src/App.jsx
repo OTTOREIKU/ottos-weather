@@ -321,18 +321,25 @@ export default function App() {
   // accuracy features apply only near a collector-scored location: pooled
   // scores are learned where we verify, and shouldn't steer a forecast for
   // somewhere unrelated (searching California gets the plain mean, no scorecard)
-  const nearTracked = useMemo(() => {
-    if (!location) return false
-    if (!tracked?.length) return true // locations list unavailable: keep old behavior
-    return tracked.some((t) => distKm(t, location) <= NEAR_TRACKED_KM)
+  // the nearest collector-scored location within range; its own score tables
+  // drive both the corrections and the scorecard (never another city's data,
+  // and never the pooled all-locations table). Matching by distance rather than
+  // exact coordinates means "My location" and nearby suburbs resolve correctly.
+  const homeTrack = useMemo(() => {
+    if (!location || !tracked?.length) return null
+    let best = null
+    for (const t of tracked) {
+      const d = distKm(t, location)
+      if (d <= NEAR_TRACKED_KM && (!best || d < best.km)) best = { ...t, km: d }
+    }
+    return best
   }, [tracked, location])
+  const nearTracked = !!homeTrack
+  const homeScores = homeTrack ? scores?.locations?.[storage.locationKey(homeTrack)] : null
 
   // accuracy weights + learned bias corrections kick in once enough models
-  // have 14+ verified days; location-specific scores win over pooled ones
-  const scope = useMemo(
-    () => (location && nearTracked ? selectScope(scores, storage.locationKey(location)) : null),
-    [scores, location, nearTracked],
-  )
+  // have 14+ verified days at that location
+  const scope = useMemo(() => (homeScores ? selectScope({ locations: { home: homeScores } }, 'home') : null), [homeScores])
   const modelIds = useMemo(() => ALL_MODELS.map((m) => m.id), [])
   const weights = useMemo(
     () => (weighting && scope ? weightsFromScores(scope.models, modelIds) : null),
@@ -447,7 +454,9 @@ export default function App() {
           <DailySection data={data} units={units} weights={weights} bias={bias} nowIndex={nowIndex} />
           {nearTracked && (
             <Scorecard
-              scores={scores}
+              scores={homeScores}
+              place={homeTrack.name}
+              placeKm={homeTrack.km}
               units={units}
               weighting={weighting}
               onToggleWeighting={toggleWeighting}
@@ -455,7 +464,6 @@ export default function App() {
               biasCorrect={biasCorrect}
               onToggleBias={toggleBias}
               biasActive={!!bias}
-              scope={scope?.scope}
             />
           )}
           <SourcesPanel

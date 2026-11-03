@@ -1,5 +1,6 @@
 import React from 'react'
 import { ALL_MODELS } from '../api/sources.js'
+import { BENCHED } from '../lib/aggregate.js'
 
 // Model accuracy scoreboard, fed by data/scores.json which a scheduled GitHub
 // Action updates daily (verified next-day forecasts vs observed history).
@@ -12,7 +13,8 @@ export default function Scorecard({
   biasCorrect,
   onToggleBias,
   biasActive,
-  scope,
+  place,
+  placeKm,
 }) {
   // extra sources appear once the collector has verified days for them
   const rows = ALL_MODELS.filter((m) => !m.extra || scores?.models?.[m.id]?.nT).map((m) => {
@@ -56,7 +58,12 @@ export default function Scorecard({
       <div className="chart-head">
         <div className="section-title">
           Model scorecard: verified next-day accuracy
-          {hasData && scope && <span className="scope-tag">{scope === 'local' ? 'local scores' : 'all locations pooled'}</span>}
+          {place && (
+            <span className="scope-tag">
+              {place}
+              {placeKm >= 5 ? ` · ${Math.round(placeKm * 0.621)} mi away` : ''}
+            </span>
+          )}
         </div>
         {hasData && (
           <span className="score-toggles">
@@ -88,7 +95,7 @@ export default function Scorecard({
                 <span className="swatch" style={{ background: r.color }} />
                 <span className="name">
                   {r.label}
-                  <small>{r.agency}</small>
+                  <small>{BENCHED.has(r.id) ? 'benched · not in mean' : r.agency}</small>
                 </span>
                 {r.n > 0 ? (
                   <>

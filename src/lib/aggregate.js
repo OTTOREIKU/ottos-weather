@@ -141,6 +141,13 @@ export function spreadTone(rangeC) {
 
 const MIN_SCORED_MODELS = 5
 
+// Sources kept out of the corrected mean (weight 0) while still scored nightly
+// and still drawn in charts and the spread. Nov 2026 audit: dropping CMA and
+// OpenWeather together lowered out-of-sample error in both October halves and
+// at all three tracked locations (~3%). Re-check at each audit; promote back
+// by removing from this set.
+export const BENCHED = new Set(['cma_grapes_global', 'openweather'])
+
 // Pick the scoring scope for a location. Preference order: this location's
 // rolling 30-day table, its all-time table, then the pooled equivalents.
 // Recent tables win because biases drift seasonally (see collect.mjs 2b).
@@ -178,6 +185,7 @@ export function weightsFromScores(models, modelIds, minDays = 14) {
   if (scored.length < MIN_SCORED_MODELS) return null
   const neutral = scored.reduce((a, id) => a + raw[id], 0) / scored.length
   for (const id of modelIds) if (!(id in raw)) raw[id] = neutral
+  for (const id of BENCHED) if (id in raw) raw[id] = 0
   const total = modelIds.reduce((a, id) => a + raw[id], 0)
   const out = {}
   for (const id of modelIds) out[id] = raw[id] / total
