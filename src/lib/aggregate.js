@@ -40,6 +40,8 @@ export function kstats(byModel, weights, bias) {
 }
 
 // perModel: { modelId: number[] | null } → column-wise stats arrays
+// bias may be a { id: c } map or a function (columnIndex) => map, for
+// corrections that vary by hour
 export function aggregateSeries(perModel, weights, bias) {
   const entries = Object.entries(perModel).filter(([, a]) => Array.isArray(a))
   const len = Math.max(0, ...entries.map(([, a]) => a.length))
@@ -49,7 +51,7 @@ export function aggregateSeries(perModel, weights, bias) {
   for (let i = 0; i < len; i++) {
     const byModel = {}
     for (const [id, arr] of entries) byModel[id] = arr[i]
-    const s = kstats(byModel, weights, bias)
+    const s = kstats(byModel, weights, typeof bias === 'function' ? bias(i) : bias)
     if (s) {
       mean[i] = s.mean
       min[i] = s.min
@@ -139,14 +141,17 @@ export function spreadTone(rangeC) {
 
 const MIN_SCORED_MODELS = 5
 
-// Pick the scoring scope for a location: location-specific scores once that
-// location has enough verified data, otherwise the pooled global scores.
+// Pick the scoring scope for a location. Preference order: this location's
+// rolling 30-day table, its all-time table, then the pooled equivalents.
+// Recent tables win because biases drift seasonally (see collect.mjs 2b).
 export function selectScope(scores, locKey, minDays = 14) {
   const enough = (models) =>
     models && Object.values(models).filter((m) => (m.nT || 0) >= minDays).length >= MIN_SCORED_MODELS
-  const local = scores?.locations?.[locKey]?.models
-  if (enough(local)) return { models: local, scope: 'local' }
-  if (enough(scores?.models)) return { models: scores.models, scope: 'global' }
+  const loc = scores?.locations?.[locKey]
+  if (enough(loc?.recent?.models)) return { models: loc.recent.models, scope: 'local', recent: true }
+  if (enough(loc?.models)) return { models: loc.models, scope: 'local', recent: false }
+  if (enough(scores?.recent?.models)) return { models: scores.recent.models, scope: 'global', recent: true }
+  if (enough(scores?.models)) return { models: scores.models, scope: 'global', recent: false }
   return null
 }
 
@@ -179,21 +184,49 @@ export function weightsFromScores(models, modelIds, minDays = 14) {
   return out
 }
 
-// Learned temperature corrections: the negated mean signed error, so a model
-// that runs 2° hot gets -2 applied before averaging. Clamped to ±5°C sanity.
+// Learned temperature corrections, kept SEPARATE for highs and lows: many
+// models are cold on afternoon highs but warm on overnight lows, and one
+// averaged number corrects both the wrong way. Each is the negated mean signed
+// error, clamped to +-5C. Returns { hi: {id: c}, lo: {id: c} } or null.
 export function biasFromScores(models, modelIds, minDays = 14) {
   if (!models) return null
-  const out = {}
+  const hi = {}
+  const lo = {}
   let any = false
+  const clamp = (v) => -Math.max(-5, Math.min(5, v))
   for (const id of modelIds) {
     const m = models[id]
     if (m && m.nT >= minDays && Number.isFinite(m.sumBiasHi) && Number.isFinite(m.sumBiasLo)) {
-      const meanBias = (m.sumBiasHi + m.sumBiasLo) / (2 * m.nT)
-      out[id] = -Math.max(-5, Math.min(5, meanBias))
+      hi[id] = clamp(m.sumBiasHi / m.nT)
+      lo[id] = clamp(m.sumBiasLo / m.nT)
       any = true
     } else {
-      out[id] = 0
+      hi[id] = 0
+      lo[id] = 0
     }
   }
-  return any ? out : null
+  return any ? { hi, lo } : null
+}
+
+// Per-model correction for one hourly temperature: blend the low and high
+// corrections by where that hour sits within the model's own forecast range
+// for the day (overnight trough takes the low fix, afternoon peak the high).
+export function hourlyBiasAt(bias, data, i) {
+  if (!bias) return null
+  const day = data.dailyTime.indexOf(data.hourlyTime[i]?.slice(0, 10))
+  const out = {}
+  for (const id of Object.keys(bias.hi)) {
+    const bh = bias.hi[id]
+    const bl = bias.lo[id]
+    const v = data.hourly.temperature_2m?.[id]?.[i]
+    const mx = day >= 0 ? data.daily.temperature_2m_max?.[id]?.[day] : null
+    const mn = day >= 0 ? data.daily.temperature_2m_min?.[id]?.[day] : null
+    if ([v, mx, mn].every(Number.isFinite) && mx - mn > 0.5) {
+      const f = Math.max(0, Math.min(1, (v - mn) / (mx - mn)))
+      out[id] = bl + f * (bh - bl)
+    } else {
+      out[id] = (bh + bl) / 2
+    }
+  }
+  return out
 }

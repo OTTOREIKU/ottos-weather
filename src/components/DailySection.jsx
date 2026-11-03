@@ -28,8 +28,8 @@ export default function DailySection({ data, units, weights, bias, nowIndex }) {
         <div className="section-title">8-day outlook, tap a day for its hourly detail</div>
         <div className="daily-grid">
           {data.dailyTime.map((iso, i) => {
-            const hi = kstats(valuesAt(data.daily.temperature_2m_max, i), weights, bias)
-            const lo = kstats(valuesAt(data.daily.temperature_2m_min, i), weights, bias)
+            const hi = kstats(valuesAt(data.daily.temperature_2m_max, i), weights, bias?.hi)
+            const lo = kstats(valuesAt(data.daily.temperature_2m_min, i), weights, bias?.lo)
             const code = consensusCode(Object.values(valuesAt(data.daily.weather_code, i)))
             const cond = describe(code)
             const rain = agreementAt(data.daily.precipitation_sum, i, 0.2)

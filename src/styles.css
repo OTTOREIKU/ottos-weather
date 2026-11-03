@@ -1351,7 +1351,7 @@ button.item:hover {
 
 .score-row {
   display: grid;
-  grid-template-columns: 28px 12px 92px 1fr 110px 96px 72px 36px;
+  grid-template-columns: 28px 12px 92px 1fr 110px 128px 96px 36px;
   align-items: center;
   gap: 8px;
   padding: 7px 0;

@@ -1,5 +1,5 @@
 import React from 'react'
-import { kstats, valuesAt, consensusCode, spreadTone } from '../lib/aggregate.js'
+import { kstats, valuesAt, consensusCode, spreadTone, hourlyBiasAt } from '../lib/aggregate.js'
 import { describe } from '../lib/weatherCodes.js'
 import { temp, precip } from '../lib/convert.js'
 
@@ -11,15 +11,15 @@ const RADAR_WORDS = ['', 'light rain', 'moderate rain', 'heavy rain']
 export default function CurrentCard({ data, units, weights, bias, rainSoon, radarNow, location, nowIndex, isSaved, onToggleSave }) {
   const at = (v) => valuesAt(data.hourly[v], nowIndex)
   // bias corrections are learned on temperature, so they apply only there
-  const tempStats = kstats(at('temperature_2m'), weights, bias)
+  const tempStats = kstats(at('temperature_2m'), weights, hourlyBiasAt(bias, data, nowIndex))
   const feels = kstats(at('apparent_temperature'), weights)
   const humidity = kstats(at('relative_humidity_2m'))
   const rain = kstats(at('precipitation'))
   const code = consensusCode(Object.values(at('weather_code')))
   const cond = describe(code)
 
-  const hi = kstats(valuesAt(data.daily.temperature_2m_max, 0), weights, bias)
-  const lo = kstats(valuesAt(data.daily.temperature_2m_min, 0), weights, bias)
+  const hi = kstats(valuesAt(data.daily.temperature_2m_max, 0), weights, bias?.hi)
+  const lo = kstats(valuesAt(data.daily.temperature_2m_min, 0), weights, bias?.lo)
 
   const range = tempStats ? tempStats.max - tempStats.min : null
   const tone = spreadTone(range)

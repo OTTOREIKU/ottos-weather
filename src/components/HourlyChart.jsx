@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react'
 import { ALL_MODELS as MODELS } from '../api/sources.js'
-import { aggregateSeries, agreementAt, consensusCode } from '../lib/aggregate.js'
+import { aggregateSeries, agreementAt, consensusCode, hourlyBiasAt } from '../lib/aggregate.js'
 import { describe } from '../lib/weatherCodes.js'
 import { cToF, precip } from '../lib/convert.js'
 
@@ -87,7 +87,7 @@ export default function HourlyChart({ data, units, weights, bias, startIndex, ho
       n,
       times,
       perModelTemp,
-      agg: aggregateSeries(perModelTemp, weights, bias),
+      agg: aggregateSeries(perModelTemp, weights, bias ? (i) => hourlyBiasAt(bias, data, start + i) : null),
       perModelPrecip,
       precipAgg: aggregateSeries(perModelPrecip),
       conds,

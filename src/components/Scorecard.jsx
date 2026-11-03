@@ -20,7 +20,12 @@ export default function Scorecard({
     if (!s || !s.nT) return { ...m, n: 0 }
     const maeC = s.sumErr / s.nT
     const rainTotal = s.rain ? s.rain.hit + s.rain.miss + s.rain.fa + s.rain.cn : 0
-    const biasC = Number.isFinite(s.sumBiasHi) ? (s.sumBiasHi + s.sumBiasLo) / (2 * s.nT) : null
+    // hot/cold notes describe what is actually corrected: the recent window,
+    // split into highs and lows (falls back to the all-time record)
+    const r = scores?.recent?.models?.[m.id]?.nT >= 14 ? scores.recent.models[m.id] : s
+    const toU = (c) => (units === 'imperial' ? c * 1.8 : c)
+    const biasHi = Number.isFinite(r.sumBiasHi) ? toU(r.sumBiasHi / r.nT) : null
+    const biasLo = Number.isFinite(r.sumBiasLo) ? toU(r.sumBiasLo / r.nT) : null
     // storm timing: critical success index over rainy hours (hits vs misses
     // and false alarms), so quiet dry hours don't inflate the number
     const rhEvents = s.rainH ? s.rainH.hit + s.rainH.miss + s.rainH.fa : 0
@@ -30,7 +35,8 @@ export default function Scorecard({
       n: s.nT,
       maeC,
       mae: units === 'imperial' ? maeC * 1.8 : maeC,
-      bias: biasC == null ? null : units === 'imperial' ? biasC * 1.8 : biasC,
+      biasHi,
+      biasLo,
       rainAcc: rainTotal ? (s.rain.hit + s.rain.cn) / rainTotal : null,
       timing,
     }
@@ -39,9 +45,10 @@ export default function Scorecard({
   const hasData = rows.some((r) => r.n > 0)
   const maxMae = Math.max(0.1, ...rows.filter((r) => r.n > 0).map((r) => r.mae))
 
-  const biasLabel = (b) => {
-    if (b == null || Math.abs(b) < 0.3) return ''
-    return b > 0 ? `runs ${b.toFixed(1)}° hot` : `runs ${Math.abs(b).toFixed(1)}° cold`
+  const biasLabel = (hi, lo) => {
+    if (hi == null || lo == null || (Math.abs(hi) < 0.3 && Math.abs(lo) < 0.3)) return ''
+    const f = (v) => `${v >= 0 ? '+' : '-'}${Math.abs(v).toFixed(1)}°`
+    return `hi ${f(hi)} / lo ${f(lo)}`
   }
 
   return (
@@ -91,7 +98,7 @@ export default function Scorecard({
                     <span className="mae">
                       ±{r.mae.toFixed(1)}°<small> avg error</small>
                     </span>
-                    <span className="bias-note">{biasLabel(r.bias)}</span>
+                    <span className="bias-note">{biasLabel(r.biasHi, r.biasLo)}</span>
                     <span
                       className="rain-acc"
                       title={r.timing != null ? `storm timing skill (right hours): ${Math.round(r.timing * 100)}%` : undefined}
@@ -110,9 +117,10 @@ export default function Scorecard({
           <div className="panel-foot">
             Average error is the mean absolute miss on next-day high/low temps. Rain % is how often
             the model correctly called rain vs no rain (1 mm threshold); the hr % is storm timing,
-            how well the model put next-day rain in the right hours. Shorter bar = better. When
-            enabled, the mean is weighted toward accurate models and each model's systematic
-            hot/cold bias is subtracted before averaging.
+            how well the model put next-day rain in the right hours. Shorter bar = better. Rankings
+            use the full record; corrections use the last 30 days, since model biases drift with
+            the seasons. The hi/lo note is each model's recent miss on highs and lows (+ = too
+            warm), corrected separately before averaging.
           </div>
         </>
       )}
