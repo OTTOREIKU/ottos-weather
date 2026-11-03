@@ -325,21 +325,29 @@ export default function App() {
   // drive both the corrections and the scorecard (never another city's data,
   // and never the pooled all-locations table). Matching by distance rather than
   // exact coordinates means "My location" and nearby suburbs resolve correctly.
-  const homeTrack = useMemo(() => {
-    if (!location || !tracked?.length) return null
-    let best = null
-    for (const t of tracked) {
-      const d = distKm(t, location)
-      if (d <= NEAR_TRACKED_KM && (!best || d < best.km)) best = { ...t, km: d }
-    }
-    return best
+  const nearby = useMemo(() => {
+    if (!location || !tracked?.length) return []
+    return tracked
+      .map((t) => ({ ...t, km: distKm(t, location) }))
+      .filter((t) => t.km <= NEAR_TRACKED_KM)
+      .sort((a, b) => a.km - b.km)
   }, [tracked, location])
+  const homeTrack = nearby[0] || null
   const nearTracked = !!homeTrack
   const homeScores = homeTrack ? scores?.locations?.[storage.locationKey(homeTrack)] : null
 
-  // accuracy weights + learned bias corrections kick in once enough models
-  // have 14+ verified days at that location
-  const scope = useMemo(() => (homeScores ? selectScope({ locations: { home: homeScores } }, 'home') : null), [homeScores])
+  // corrections come from the nearest location whose tables are ready (14+
+  // verified days). A newly tracked city borrows its nearest ready neighbor
+  // until its own data matures, then switches over automatically.
+  const { scope, corrFrom } = useMemo(() => {
+    for (const t of nearby) {
+      const ls = scores?.locations?.[storage.locationKey(t)]
+      const sc = ls ? selectScope({ locations: { home: ls } }, 'home') : null
+      if (sc) return { scope: sc, corrFrom: { ...t, scores: ls } }
+    }
+    return { scope: null, corrFrom: null }
+  }, [nearby, scores])
+  const rainCal = nearTracked ? homeScores?.rainCal || corrFrom?.scores?.rainCal || null : null
   const modelIds = useMemo(() => ALL_MODELS.map((m) => m.id), [])
   const weights = useMemo(
     () => (weighting && scope ? weightsFromScores(scope.models, modelIds) : null),
@@ -451,12 +459,13 @@ export default function App() {
               </div>
             }
           />
-          <DailySection data={data} units={units} weights={weights} bias={bias} nowIndex={nowIndex} />
+          <DailySection data={data} units={units} weights={weights} bias={bias} rainCal={rainCal} nowIndex={nowIndex} />
           {nearTracked && (
             <Scorecard
               scores={homeScores}
               place={homeTrack.name}
               placeKm={homeTrack.km}
+              borrowedFrom={corrFrom && corrFrom.name !== homeTrack.name ? corrFrom.name : null}
               units={units}
               weighting={weighting}
               onToggleWeighting={toggleWeighting}

@@ -1,5 +1,9 @@
 [
   { "name": "Raleigh", "lat": 35.7796, "lon": -78.6382 },
+  { "name": "Cary", "lat": 35.79154, "lon": -78.78112 },
+  { "name": "Durham", "lat": 35.99403, "lon": -78.89862 },
   { "name": "Charlotte", "lat": 35.22709, "lon": -80.84313 },
+  { "name": "Asheville", "lat": 35.60095, "lon": -82.55402 },
+  { "name": "Wilmington", "lat": 34.23556, "lon": -77.94604 },
   { "name": "White Lake", "lat": 42.6917, "lon": -83.55411 }
 ]

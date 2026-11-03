@@ -7,7 +7,15 @@ import HourlyChart from './HourlyChart.jsx'
 const DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
 const DAYS_FULL = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
 
-export default function DailySection({ data, units, weights, bias, nowIndex }) {
+// calibrated rain chance: what share of past days actually rained when this
+// share of models called for rain (learned nightly per location)
+function rainChance(rainCal, agree, total) {
+  if (!rainCal || !total) return null
+  const b = Math.min(rainCal.bins.length - 1, Math.floor((agree / total) * rainCal.bins.length))
+  return rainCal.bins[b]
+}
+
+export default function DailySection({ data, units, weights, bias, rainCal, nowIndex }) {
   const [selected, setSelected] = useState(null)
 
   const dayName = (iso, i, full) => {
@@ -35,7 +43,8 @@ export default function DailySection({ data, units, weights, bias, nowIndex }) {
             const rain = agreementAt(data.daily.precipitation_sum, i, 0.2)
             const rainSum = kstats(valuesAt(data.daily.precipitation_sum, i))
             const pr = precip(rainSum?.mean, units)
-            const wet = rain.agree > 0 && rainSum?.mean > 0.1
+            const chance = rainChance(rainCal, rain.agree, rain.total)
+            const wet = chance != null ? chance >= 0.1 : rain.agree > 0 && rainSum?.mean > 0.1
             const [, mo, d] = iso.split('-').map(Number)
 
             return (
@@ -55,8 +64,19 @@ export default function DailySection({ data, units, weights, bias, nowIndex }) {
                 <div className="range">
                   {temp(hi?.min, units)}–{temp(hi?.max, units)}° hi span
                 </div>
-                <div className={`rain ${wet ? '' : 'none'}`}>
-                  {wet ? `💧 ${rain.agree}/${rain.total} · ${pr.value} ${pr.unit}` : 'dry'}
+                <div
+                  className={`rain ${wet ? '' : 'none'}`}
+                  title={
+                    chance != null
+                      ? `${rain.agree} of ${rain.total} models call for rain; historically it rained ${Math.round(chance * 100)}% of the time when models agreed this much`
+                      : undefined
+                  }
+                >
+                  {wet
+                    ? chance != null
+                      ? `💧 ${Math.round(chance * 100)}% · ${pr.value} ${pr.unit}`
+                      : `💧 ${rain.agree}/${rain.total} · ${pr.value} ${pr.unit}`
+                    : 'dry'}
                 </div>
               </button>
             )

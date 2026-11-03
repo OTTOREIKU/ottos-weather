@@ -380,6 +380,54 @@ for (const [lk, models] of Object.entries(recentByLoc)) {
   if (scores.locations?.[lk]) scores.locations[lk].recent = { windowDays: RECENT_DAYS, from: recentFrom, models }
 }
 
+// ---- 2c) rain-chance calibration ----
+// The app's raw rain signal is "share of models calling for >=0.2 mm". The
+// Nov 2026 audit found it overconfident (80-100% agreement -> rained 55% of
+// days). Learn, per location, how often it actually rained in each agreement
+// band; the app shows that calibrated chance instead.
+const CAL_BINS = 5
+const CAL_MM = 0.2
+const binOf = (frac) => Math.min(CAL_BINS - 1, Math.floor(frac * CAL_BINS))
+const calCounts = {} // lk|'all' -> { n: [], wet: [] }
+for (const e of Object.values(log)) {
+  if (!e.verified || !Number.isFinite(e.actual?.pr)) continue
+  const prs = Object.values(e.models)
+    .map((f) => f?.pr)
+    .filter(Number.isFinite)
+  if (prs.length < 6) continue
+  const b = binOf(prs.filter((p) => p >= CAL_MM).length / prs.length)
+  const wet = e.actual.pr >= CAL_MM ? 1 : 0
+  for (const k of [`${e.lat.toFixed(2)},${e.lon.toFixed(2)}`, 'all']) {
+    const c = (calCounts[k] ||= { n: Array(CAL_BINS).fill(0), wet: Array(CAL_BINS).fill(0) })
+    c.n[b]++
+    c.wet[b] += wet
+  }
+}
+// pool-adjacent-violators: weighted monotone non-decreasing fit
+function monotone(p, w) {
+  const blocks = p.map((v, i) => ({ v, w: Math.max(w[i], 1e-6), len: 1 }))
+  for (let i = 0; i < blocks.length - 1; ) {
+    if (blocks[i].v > blocks[i + 1].v) {
+      const a = blocks[i]
+      const b = blocks[i + 1]
+      blocks.splice(i, 2, { v: (a.v * a.w + b.v * b.w) / (a.w + b.w), w: a.w + b.w, len: a.len + b.len })
+      if (i > 0) i--
+    } else i++
+  }
+  return blocks.flatMap((bl) => Array(bl.len).fill(Math.round(bl.v * 1000) / 1000))
+}
+function calibrate(c, prior, k) {
+  const p = c.n.map((n, i) => (c.wet[i] + k * prior[i]) / (n + k))
+  return { threshold: CAL_MM, bins: monotone(p, c.n.map((n) => n + k)), n: c.n }
+}
+if (calCounts.all) {
+  const mid = Array.from({ length: CAL_BINS }, (_, i) => (i + 0.5) / CAL_BINS)
+  scores.rainCal = calibrate(calCounts.all, mid, 4)
+  for (const [lk, c] of Object.entries(calCounts)) {
+    if (lk !== 'all' && scores.locations?.[lk]) scores.locations[lk].rainCal = calibrate(c, scores.rainCal.bins, 8)
+  }
+}
+
 // ---- 3) prune old verified entries ----
 for (const [key, entry] of Object.entries(log)) {
   if (entry.verified && entry.date < addDays(today, -60)) delete log[key]
