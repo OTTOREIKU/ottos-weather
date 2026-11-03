@@ -43,9 +43,21 @@ export default function RadarMap({ location }) {
   // init map once per location
   useEffect(() => {
     const map = L.map(mapEl.current, { center: [location.lat, location.lon], zoom: 8, zoomControl: true })
-    L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
-      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com/">CARTO</a>',
-      subdomains: 'abcd',
+    // Esri Dark Gray Canvas, keyless (CARTO's free basemap began requiring an
+    // API key in late 2026). Base and labels are separate layers so city
+    // names can sit ABOVE the radar instead of disappearing under storms.
+    const ESRI = 'https://server.arcgisonline.com/ArcGIS/rest/services/Canvas'
+    L.tileLayer(`${ESRI}/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}`, {
+      attribution: 'Map &copy; <a href="https://www.esri.com/">Esri</a>, HERE, Garmin, &copy; OpenStreetMap contributors',
+      maxNativeZoom: 16,
+      maxZoom: 12,
+    }).addTo(map)
+    map.createPane('labels')
+    map.getPane('labels').style.zIndex = 450 // above tile/overlay panes (radar), below markers
+    map.getPane('labels').style.pointerEvents = 'none'
+    L.tileLayer(`${ESRI}/World_Dark_Gray_Reference/MapServer/tile/{z}/{y}/{x}`, {
+      pane: 'labels',
+      maxNativeZoom: 16,
       maxZoom: 12,
     }).addTo(map)
     L.circleMarker([location.lat, location.lon], {

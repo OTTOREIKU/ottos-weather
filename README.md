@@ -54,4 +54,4 @@ scoring data is stored in the repo itself by the workflow.
 - Forecasts & geocoding: [Open-Meteo](https://open-meteo.com/) (free, non-commercial)
 - Alerts: [National Weather Service](https://www.weather.gov/documentation/services-web-api)
 - Radar: [LibreWXR](https://librewxr.net/) (open source, CC BY 4.0)
-- Basemap: © OpenStreetMap contributors, © CARTO
+- Basemap: Esri Dark Gray Canvas (© Esri, HERE, Garmin, © OpenStreetMap contributors)
