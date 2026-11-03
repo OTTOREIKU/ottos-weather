@@ -1,4 +1,5 @@
 import React, { useState } from 'react'
+import usePanelOpen from '../lib/usePanelOpen.js'
 import { EXTRA_SOURCES } from '../api/sources.js'
 import { callCounts } from '../lib/storage.js'
 
@@ -13,7 +14,7 @@ export default function SourcesPanel({ settings, onChange, status = {}, keyStatu
         'Your sync token has likely expired: create a fresh fine-grained token for the settings ' +
         'repo and update the SETTINGS_REPO_TOKEN secret in the ottos-weather repo.'
       : null
-  const [open, setOpen] = useState(false)
+  const [open, setOpen] = usePanelOpen('sources', false)
   const [keys, setKeys] = useState({
     openweather: settings.openweather?.key || '',
     pirate: settings.pirate?.key || '',

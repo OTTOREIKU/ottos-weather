@@ -1,4 +1,5 @@
-import React, { useState } from 'react'
+import React from 'react'
+import usePanelOpen, { isWide } from '../lib/usePanelOpen.js'
 import { kstats, valuesAt } from '../lib/aggregate.js'
 import { moonPhase } from '../lib/astro.js'
 import { temp, wind, pressure } from '../lib/convert.js'
@@ -69,7 +70,7 @@ const isoMinutes = (iso) => Number(iso.slice(11, 13)) * 60 + Number(iso.slice(14
 
 export default function DetailsSection({ data, details, units, nowIndex }) {
   // collapsed by default on phones, matching the model breakdown
-  const [open, setOpen] = useState(() => typeof window === 'undefined' || !window.innerWidth || window.innerWidth > 820)
+  const [open, setOpen] = usePanelOpen('details', isWide)
   const dew = kstats(valuesAt(data.hourly.dew_point_2m, nowIndex))
   const windSt = kstats(valuesAt(data.hourly.wind_speed_10m, nowIndex))
   const cloud = kstats(valuesAt(data.hourly.cloud_cover, nowIndex))

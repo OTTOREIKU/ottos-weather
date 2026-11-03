@@ -1,4 +1,5 @@
-import React, { useState } from 'react'
+import React from 'react'
+import usePanelOpen, { isWide } from '../lib/usePanelOpen.js'
 import { ALL_MODELS } from '../api/sources.js'
 import { kstats, valuesAt } from '../lib/aggregate.js'
 import { describe } from '../lib/weatherCodes.js'
@@ -9,7 +10,7 @@ import { temp1 } from '../lib/convert.js'
 // hidden. Collapsible so it stays out of the way on phones.
 export default function ModelPanel({ data, units, weights, nowIndex }) {
   // collapsed by default on phones; a reported width of 0 (headless embeds) counts as desktop
-  const [open, setOpen] = useState(() => typeof window === 'undefined' || !window.innerWidth || window.innerWidth > 820)
+  const [open, setOpen] = usePanelOpen('models', isWide)
   const temps = valuesAt(data.hourly.temperature_2m, nowIndex)
   const codes = valuesAt(data.hourly.weather_code, nowIndex)
   const s = kstats(temps, weights)
