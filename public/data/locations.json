@@ -8,5 +8,8 @@
   { "name": "White Lake", "lat": 42.6917, "lon": -83.55411 },
   { "name": "Milford", "lat": 42.59364, "lon": -83.59939 },
   { "name": "Royal Oak", "lat": 42.48948, "lon": -83.14465 },
-  { "name": "Detroit", "lat": 42.33143, "lon": -83.04575 }
+  { "name": "Detroit", "lat": 42.33143, "lon": -83.04575 },
+  { "name": "Boone", "lat": 36.21679, "lon": -81.67455 },
+  { "name": "Nags Head", "lat": 35.95739, "lon": -75.62406 },
+  { "name": "Winston-Salem", "lat": 36.09986, "lon": -80.24422 }
 ]
